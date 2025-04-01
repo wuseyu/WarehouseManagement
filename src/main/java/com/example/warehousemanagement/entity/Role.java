@@ -1,10 +1,8 @@
 package com.example.warehousemanagement.entity;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-
-import jakarta.persistence.*;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,33 +16,27 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 核心字段：角色类型（枚举+唯一约束）
     @Column(nullable = false, unique = true, length = 50)
     @Enumerated(EnumType.STRING)
     private RoleType type;
 
-    // 业务字段：中文名称+职责描述
     @Column(nullable = false, length = 100)
-    private String name; // 如："华北区城市运营商"
-    @Column(columnDefinition = "TEXT") // 📌 支持长文本
-    private String responsibility; // 详细职责说明（区别于枚举描述）
+    private String name; 
 
+    @Column(columnDefinition = "TEXT") 
+    private String responsibility; 
 
-    // 双向关联 RolePermission
+    @ManyToMany(mappedBy = "roles")
+    private List<User> users = new ArrayList<>();
+
     @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RolePermission> rolePermissions = new ArrayList<>();
 
-    // 快捷方法：添加权限
     public void addPermission(Permission permission) {
         RolePermission rp = new RolePermission(this, permission);
         rolePermissions.add(rp);
         permission.getRolePermissions().add(rp);
     }
-
-
-
-
-
 
     public enum RoleType {
         SUPER_ADMIN("超级管理员", "系统最高权限"),
@@ -60,6 +52,5 @@ public class Role {
             this.cnName = post;
             this.description = Duty;
         }
-        // 构造方法、getter省略
     }
 }

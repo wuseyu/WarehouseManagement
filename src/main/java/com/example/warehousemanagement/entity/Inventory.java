@@ -58,6 +58,15 @@ public class Inventory {
     @Version
     private Integer version;
 
+    // 添加全参构造函数（测试需要）
+    public Inventory(Warehouse warehouse, Product product, int quantity) {
+        this.warehouse = warehouse;
+        this.product = product;
+        this.quantity = quantity;
+        this.createdAt = new Timestamp(System.currentTimeMillis()); // 添加时间初始化
+        this.version = 0;
+    }
+
     // 🌟 仓储业务方法（封装核心逻辑）
     public boolean deductQuantity(Integer amount) {
         if (status != InventoryStatus.AVAILABLE) return false; // 非可用状态不可扣减
@@ -99,7 +108,7 @@ public class Inventory {
     public enum InventoryStatus {
         AVAILABLE,  // 可用
         LOCKED,     // 已锁定（订单占用）
-        FROZEN,     // 冻结（召回/质检）
+        FROZEN,     // 冻结（ Recall/质检）
         SCRAPPED    // 报废
     }
 }

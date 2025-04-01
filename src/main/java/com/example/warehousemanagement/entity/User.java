@@ -3,9 +3,9 @@ package com.example.warehousemanagement.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import java.util.List;
-
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -29,11 +29,16 @@ public class User {
     @Column(length = 20)
     private String phone;
 
-    @OneToMany(mappedBy = "user")
-    private List<Order> orders; // 可选：仅为方便查询，非必须  一个用户对应多个订单
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Order> orders = new ArrayList<>(); 
 
-    @OneToOne // 必须：角色关联 一个角色对应一种权限职责
-    private Role roles;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "user_role",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private List<Role> roles = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Timestamp createdAt;

@@ -44,6 +44,10 @@ public class Task {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    // 添加 order 属性来建立双向关联
+    @OneToOne(mappedBy = "task")
+    private Order order;
+
     public enum TaskStatus {
         PENDING, IN_PROGRESS, COMPLETED // 任务状态
     }

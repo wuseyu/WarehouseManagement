@@ -50,10 +50,12 @@ public class Order {
     private Timestamp updatedAt;
 
     // 关联关系
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "order_id") // 新增 JoinColumn 来指定外键列
     private List<OrderItem> orderItems = new ArrayList<>();
 
-    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "task_id") // 新增 JoinColumn 来指定外键列
     private Task task;
 
     // 🌟 业务方法：自动计算总金额
