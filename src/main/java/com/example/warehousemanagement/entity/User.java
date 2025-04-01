@@ -3,6 +3,7 @@ package com.example.warehousemanagement.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.List;
 
 import java.sql.Timestamp;
 
@@ -27,6 +28,12 @@ public class User {
 
     @Column(length = 20)
     private String phone;
+
+    @OneToMany(mappedBy = "user")
+    private List<Order> orders; // 可选：仅为方便查询，非必须  一个用户对应多个订单
+
+    @OneToOne // 必须：角色关联 一个角色对应一种权限职责
+    private Role roles;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Timestamp createdAt;
