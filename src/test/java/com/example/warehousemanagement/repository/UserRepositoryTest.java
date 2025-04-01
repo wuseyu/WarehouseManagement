@@ -1,33 +1,53 @@
 package com.example.warehousemanagement.repository;
 
+import com.example.warehousemanagement.entity.Role;
 import com.example.warehousemanagement.entity.User;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
+import java.util.List;
+
+import static com.example.warehousemanagement.entity.Role.RoleType.SUPER_ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest  // 只加载 JPA 相关的组件，适用于 Repository 测试
+@DataJpaTest
 public class UserRepositoryTest {
 
     @Autowired
     private UserRepository userRepository;
 
+    private User createUser(String username, String password, String email, Role role) {
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(password);
+        user.setEmail(email);
+        if (role != null) {
+            user.getRoles().add(role);
+        }
+        return userRepository.save(user);
+    }
+
+    @Autowired
+    private RoleRepository roleRepository;
+
+    private Role createRole(Role.RoleType roleType, String name, String responsibility) {
+        Role role = new Role();
+        role.setType(roleType);
+        role.setName(name);
+        role.setResponsibility(responsibility);
+        return roleRepository.save(role); // 先保存 Role
+    }
+
+
     @Test
     public void testSaveAndFindUser() {
-        // 创建用户
-        User user = new User();
-        user.setUsername("testUser");
-        user.setPassword("password123");
-        user.setEmail("test@example.com");
+        Role role = createRole(SUPER_ADMIN,"超级管理员","系统最高权限");
+        User savedUser = createUser("testUser", "password123", "test@example.com", role);
 
-        // 保存到数据库
-        User savedUser = userRepository.save(user);
-
-        // 通过 ID 查找
         User foundUser = userRepository.findById(savedUser.getId()).orElse(null);
 
-        // 验证
         assertThat(foundUser).isNotNull();
         assertThat(foundUser.getUsername()).isEqualTo("testUser");
         assertThat(foundUser.getEmail()).isEqualTo("test@example.com");
@@ -35,58 +55,48 @@ public class UserRepositoryTest {
 
     @Test
     public void testFindByUsername() {
-        // 创建并保存用户
-        User user = new User();
-        user.setUsername("findUser");
-        user.setPassword("securePass");
-        user.setEmail("find@example.com");
-        userRepository.save(user);
-
-        // 通过用户名查找
+        createUser("findUser", "securePass", "find@example.com", null);
         User foundUser = userRepository.findByUsername("findUser");
 
-        // 验证
         assertThat(foundUser).isNotNull();
         assertThat(foundUser.getUsername()).isEqualTo("findUser");
     }
 
     @Test
     public void testDeleteUser() {
-        // 创建并保存用户
-        User user = new User();
-        user.setUsername("deleteUser");
-        user.setPassword("deletePass");
-        user.setEmail("delete@example.com");
-        user = userRepository.save(user);
-
-        // 删除用户
+        User user = createUser("deleteUser", "deletePass", "delete@example.com", null);
         userRepository.deleteById(user.getId());
-
-        // 验证用户已删除
         assertThat(userRepository.findById(user.getId())).isEmpty();
     }
 
     @Test
     public void testUpdateUser() {
-        // 创建并保存用户
-        User user = new User();
-        user.setUsername("updateUser");
-        user.setPassword("oldPass");
-        user.setEmail("update@example.com");
-        user = userRepository.save(user);
-
-        // 更新用户信息
+        User user = createUser("updateUser", "oldPass", "update@example.com", null);
         user.setPassword("newPass");
         user.setEmail("new@example.com");
         userRepository.save(user);
 
-        // 重新查询
         User updatedUser = userRepository.findById(user.getId()).orElse(null);
 
-        // 验证
         assertThat(updatedUser).isNotNull();
         assertThat(updatedUser.getPassword()).isEqualTo("newPass");
         assertThat(updatedUser.getEmail()).isEqualTo("new@example.com");
     }
+/**
+ * Todo: add test for FindUsersByRoleName
+ */
+//    @Test
+//    public void testFindUsersByRoleName() {
+//        Role adminRole = createRole(SUPER_ADMIN,"超级管理员","系统最高权限");
+//        User user1 = createUser("adminUser1", "adminPass1", "admin1@example.com", adminRole);
+//        User user2 = createUser("adminUser2", "adminPass2", "admin2@example.com", adminRole);
+//        User user3 = createUser("regularUser", "userPass", "user@example.com", null);
+//
+//        List<User> adminUsers = userRepository.findUsersByRoleName("城市运营商");
+//
+//        assertThat(adminUsers).isNotEmpty();
+//        assertThat(adminUsers).contains(user1, user2);
+//        assertThat(adminUsers).doesNotContain(user3);
+//    }
 
 }
