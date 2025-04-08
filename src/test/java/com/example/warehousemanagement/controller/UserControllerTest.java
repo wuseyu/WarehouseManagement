@@ -2,6 +2,7 @@ package com.example.warehousemanagement.controller;
 
 import com.example.warehousemanagement.entity.User;
 import com.example.warehousemanagement.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -9,8 +10,10 @@ import org.mockito.quality.Strictness;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -23,25 +26,17 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@MockitoSettings(strictness = Strictness.LENIENT) // 新增 Mockito 配置
+@WebMvcTest(UserController.class)
 class UserControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired  // 改为自动注入
+    @MockBean  // 使用 @MockBean 替代自定义的 TestConfig
     private UserService userService;
 
-    // 新增测试配置类
-    @TestConfiguration
-    static class TestConfig {
-        @Bean
-        public UserService userService() {
-            return Mockito.mock(UserService.class); // 创建 Mock Bean
-        }
-    }
+    @Autowired
+    private ObjectMapper objectMapper;  // 用于转换对象到 JSON
 
     // 初始化模拟对象
     @BeforeEach
