@@ -1,63 +1,68 @@
 package com.example.warehousemanagement.controller;
 
 import com.example.warehousemanagement.entity.Product;
-import com.example.warehousemanagement.service.ProductService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.warehousemanagement.repository.ProductRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
+import jakarta.validation.Valid;
 import java.util.List;
 
+// 直接使用 Repository 进行基础 CRUD
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
+    private final ProductRepository productRepository;
 
-    @Autowired
-    private ProductService productService;
-
-    // 获取所有产品
-    @GetMapping
-    public List<Product> getAllProducts() {
-        return productService.getAllProducts();
+    public ProductController(ProductRepository productRepository) {
+        this.productRepository = productRepository;
     }
 
-    // 根据 ID 获取产品
+    @GetMapping
+    public ResponseEntity<List<Product>> getAllProducts() {
+        return ResponseEntity.ok(productRepository.findAll());
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getProductById(@PathVariable Long id) {
-        return productService.getProductById(id)
+    public ResponseEntity<Product> getProduct(@PathVariable Long id) {
+        return productRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 创建新产品
     @PostMapping
-    public Product createProduct(@RequestBody Product product) {
-        return productService.createProduct(product);
+    public ResponseEntity<Product> createProduct(@RequestBody @Valid Product product) {
+        return ResponseEntity.ok(productRepository.save(product));
     }
 
-    // 更新产品
     @PutMapping("/{id}")
-    public Product updateProduct(@PathVariable Long id, @RequestBody Product product) {
-        return productService.updateProduct(id, product);
+    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody @Valid Product product) {
+        if (!productRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        product.setId(id);
+        return ResponseEntity.ok(productRepository.save(product));
     }
 
-    // 删除产品
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-        productService.deleteProduct(id);
-        return ResponseEntity.noContent().build();
+        if (!productRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        productRepository.deleteById(id);
+        return ResponseEntity.ok().build();
     }
 
-    // 根据名称查找产品
     @GetMapping("/search")
-    public List<Product> getProductsByName(@RequestParam String name) {
-        return productService.getProductsByName(name);
-    }
-
-    // 根据价格区间查找产品
-    @GetMapping("/search/price")
-    public List<Product> getProductsByPriceRange(@RequestParam BigDecimal minPrice, @RequestParam BigDecimal maxPrice) {
-        return productService.getProductsByPriceRange(minPrice, maxPrice);
+    public ResponseEntity<List<Product>> searchProducts(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String category) {
+        if (name != null) {
+            return ResponseEntity.ok(productRepository.findByNameContaining(name));
+        }
+        if (category != null) {
+            return ResponseEntity.ok(productRepository.findByCategory(category));
+        }
+        return ResponseEntity.ok(productRepository.findAll());
     }
 }

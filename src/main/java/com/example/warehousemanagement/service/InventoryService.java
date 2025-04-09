@@ -1,51 +1,55 @@
 package com.example.warehousemanagement.service;
 
 import com.example.warehousemanagement.entity.Inventory;
+import com.example.warehousemanagement.entity.Inventory.InventoryStatus;
+import com.example.warehousemanagement.exception.ConcurrentInventoryException;
+import com.example.warehousemanagement.exception.NotFoundException;
 import com.example.warehousemanagement.repository.InventoryRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class InventoryService {
 
-    @Autowired
-    private InventoryRepository inventoryRepository;
+    private final InventoryRepository inventoryRepository;
 
-    // 创建新库存
+    @Transactional(readOnly = true)
+    public Inventory getInventory(Long id) {
+        return inventoryRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Inventory not found"));
+    }
+
+    @Transactional
     public Inventory createInventory(Inventory inventory) {
         return inventoryRepository.save(inventory);
     }
 
-    // 通过 ID 获取库存
-    public Inventory getInventoryById(Long id) {
-        return inventoryRepository.findById(id).orElse(null);
+    @Transactional
+    public void adjustInventoryQuantity(Long id, Integer delta, Integer expectedVersion) {
+        int affectedRows = inventoryRepository.adjustQuantity(id, delta, expectedVersion);
+        if (affectedRows == 0) {
+            throw new ConcurrentInventoryException("Inventory updated by another transaction");
+        }
     }
 
-    // 获取所有库存
-    public List<Inventory> getAllInventories() {
-        return inventoryRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<Inventory> getInventoryByWarehouseAndProduct(Long warehouseId, Long productId) {
+        return inventoryRepository.findByWarehouseIdAndProductId(warehouseId, productId);
     }
 
-    // 更新库存
-    public Inventory updateInventory(Long id, Inventory inventory) {
-        inventory.setId(id); // 设置库存 ID
-        return inventoryRepository.save(inventory);
+    @Transactional
+    public void bulkUpdateStatus(InventoryStatus status, List<Long> inventoryIds) {
+        inventoryRepository.bulkUpdateStatus(status, inventoryIds);
     }
 
-    // 删除库存
-    public void deleteInventory(Long id) {
-        inventoryRepository.deleteById(id);
-    }
-
-    // 根据仓库 ID 查找库存
-    public List<Inventory> getInventoriesByWarehouseId(Long warehouseId) {
-        return inventoryRepository.findByWarehouseId(warehouseId);
-    }
-
-    // 根据产品 ID 查找库存
-    public List<Inventory> getInventoriesByProductId(Long productId) {
-        return inventoryRepository.findByProductId(productId);
+    @Transactional(readOnly = true)
+    public Page<Inventory> listInventoryByStatus(InventoryStatus status, Pageable pageable) {
+        return inventoryRepository.findByStatus(status, pageable);
     }
 }

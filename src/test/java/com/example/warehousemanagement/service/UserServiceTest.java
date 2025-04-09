@@ -4,18 +4,23 @@ import com.example.warehousemanagement.entity.User;
 import com.example.warehousemanagement.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.context.SpringBootTest;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static com.example.warehousemanagement.entity.Role.RoleType.SUPER_ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
-class UserServiceTest {
+@ExtendWith(MockitoExtension.class)
+public class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
@@ -24,87 +29,103 @@ class UserServiceTest {
     private UserService userService;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    void testCreateUser() {
+    public void testSaveUser() {
         User user = new User();
         user.setUsername("testUser");
-        user.setPassword("password123");
+        user.setPassword("testPassword");
         user.setEmail("test@example.com");
 
-        when(userRepository.save(any(User.class))).thenReturn(user);
+        when(userRepository.save(user)).thenReturn(user);
 
-        User savedUser = userService.createUser(user);
+        User savedUser = userService.saveUser(user);
 
         assertThat(savedUser).isNotNull();
         assertThat(savedUser.getUsername()).isEqualTo("testUser");
-
         verify(userRepository, times(1)).save(user);
     }
 
     @Test
-    void testGetUserById() {
+    public void testFindByUsername() {
+        String username = "testUser";
         User user = new User();
-        user.setId(1L);
-        user.setUsername("testUser");
+        user.setUsername(username);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findByUsername(username)).thenReturn(user);
 
-        Optional<User> foundUser = userService.getUserById(1L);
-
-        assertThat(foundUser).isPresent();
-        assertThat(foundUser.get().getId()).isEqualTo(1L);
-        assertThat(foundUser.get().getUsername()).isEqualTo("testUser");
-
-        verify(userRepository, times(1)).findById(1L);
-    }
-
-    @Test
-    void testGetUserByUsername() {
-        User user = new User();
-        user.setUsername("testUser");
-
-        when(userRepository.findByUsername("testUser")).thenReturn(user);
-
-        User foundUser = userService.getUserByUsername("testUser");
+        User foundUser = userService.findByUsername(username);
 
         assertThat(foundUser).isNotNull();
-        assertThat(foundUser.getUsername()).isEqualTo("testUser");
-
-        verify(userRepository, times(1)).findByUsername("testUser");
+        assertThat(foundUser.getUsername()).isEqualTo(username);
+        verify(userRepository, times(1)).findByUsername(username);
     }
 
     @Test
-    void testGetAllUsers() {
+    public void testFindUsersByRoleName() {
+        String roleName = "SUPER_ADMIN";
+        List<User> userList = new ArrayList<>();
         User user1 = new User();
         user1.setUsername("user1");
-
         User user2 = new User();
         user2.setUsername("user2");
+        userList.add(user1);
+        userList.add(user2);
 
-        List<User> userList = Arrays.asList(user1, user2);
+        when(userRepository.findUsersByRoleName(roleName)).thenReturn(userList);
+
+        List<User> foundUsers = userService.findUsersByRoleName(roleName);
+
+        assertThat(foundUsers).isNotEmpty();
+        assertThat(foundUsers.size()).isEqualTo(2);
+        verify(userRepository, times(1)).findUsersByRoleName(roleName);
+    }
+
+    @Test
+    public void testFindById() {
+        Long id = 1L;
+        User user = new User();
+        user.setId(id);
+
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+
+        Optional<User> foundUser = userService.findById(id);
+
+        assertThat(foundUser).isPresent();
+        assertThat(foundUser.get().getId()).isEqualTo(id);
+        verify(userRepository, times(1)).findById(id);
+    }
+
+    @Test
+    public void testDeleteUser() {
+        Long id = 1L;
+
+        doNothing().when(userRepository).deleteById(id);
+
+        userService.deleteUser(id);
+
+        verify(userRepository, times(1)).deleteById(id);
+    }
+
+    @Test
+    public void testFindAllUsers() {
+        List<User> userList = new ArrayList<>();
+        User user1 = new User();
+        user1.setUsername("user1");
+        User user2 = new User();
+        user2.setUsername("user2");
+        userList.add(user1);
+        userList.add(user2);
 
         when(userRepository.findAll()).thenReturn(userList);
 
-        List<User> allUsers = userService.getAllUsers();
+        List<User> allUsers = userService.findAllUsers();
 
-        assertThat(allUsers).isNotNull();
+        assertThat(allUsers).isNotEmpty();
         assertThat(allUsers.size()).isEqualTo(2);
-        assertThat(allUsers.get(0).getUsername()).isEqualTo("user1");
-        assertThat(allUsers.get(1).getUsername()).isEqualTo("user2");
-
         verify(userRepository, times(1)).findAll();
-    }
-
-    @Test
-    void testDeleteUser() {
-        doNothing().when(userRepository).deleteById(1L);
-
-        userService.deleteUser(1L);
-
-        verify(userRepository, times(1)).deleteById(1L);
     }
 }

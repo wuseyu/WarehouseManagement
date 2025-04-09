@@ -1,182 +1,184 @@
 package com.example.warehousemanagement.controller;
 
 import com.example.warehousemanagement.entity.Order;
+import com.example.warehousemanagement.entity.OrderItem;
 import com.example.warehousemanagement.entity.User;
 import com.example.warehousemanagement.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Optional;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(OrderController.class)
 class OrderControllerTest {
 
+    @Autowired
     private MockMvc mockMvc;
 
-    @Mock
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
     private OrderService orderService;
 
-    @InjectMocks
-    private OrderController orderController;
-
-    private Order order;
+    private Order testOrder;
+    private OrderItem testOrderItem;
+    private User testUser;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(orderController).build();
+        // 初始化测试用户
+        testUser = new User();
+        testUser.setId(1L);
+        testUser.setUsername("testUser");
 
-        order = new Order();
-        order.setId(1L);
-        order.setUser(new User());
-        order.setTotalPrice(new BigDecimal("200.50"));
-        order.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-        order.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
+        // 初始化测试订单
+        testOrder = new Order(testUser, "测试地址");
+        testOrder.setId(1L);
+        testOrder.setStatus(Order.OrderStatus.PENDING);
+        testOrder.setTotalAmount(new BigDecimal("100.00"));
+        testOrder.setOrderNo("ORD-2025-001");
+
+        // 初始化测试订单项
+        testOrderItem = new OrderItem();
+        testOrderItem.setId(1L);
+        testOrderItem.setQuantity(2);
+        testOrderItem.setUnitPrice(new BigDecimal("50.00"));
     }
 
     @Test
-    void testGetAllOrders() throws Exception {
-        List<Order> orders = Arrays.asList(order, new Order());
-        when(orderService.getAllOrders()).thenReturn(orders);
-
-        mockMvc.perform(get("/api/orders"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
-
-        verify(orderService, times(1)).getAllOrders();
-    }
-
-    @Test
-    void testGetOrderById_Success() throws Exception {
-        when(orderService.getOrderById(1L)).thenReturn(order);
-
-        mockMvc.perform(get("/api/orders/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
-
-        verify(orderService, times(1)).getOrderById(1L);
-    }
-
-    @Test
-    void testGetOrderById_NotFound() throws Exception {
-        when(orderService.getOrderById(1L)).thenReturn(null);
-
-        mockMvc.perform(get("/api/orders/1"))
-                .andExpect(status().isNotFound());
-
-        verify(orderService, times(1)).getOrderById(1L);
-    }
-
-    @Test
-    void testCreateOrder() throws Exception {
-        when(orderService.createOrder(any(Order.class))).thenReturn(order);
+    void shouldCreateOrder() throws Exception {
+        when(orderService.createOrder(any(Order.class))).thenReturn(testOrder);
 
         mockMvc.perform(post("/api/orders")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(new ObjectMapper().writeValueAsString(order)))
+                        .content(objectMapper.writeValueAsString(testOrder)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
-
-        verify(orderService, times(1)).createOrder(any(Order.class));
+                .andExpect(jsonPath("$.id").value(testOrder.getId()))
+                .andExpect(jsonPath("$.status").value(testOrder.getStatus().toString()))
+                .andExpect(jsonPath("$.orderNo").value(testOrder.getOrderNo()));
     }
 
     @Test
-    void testUpdateOrder() throws Exception {
-        when(orderService.updateOrder(eq(1L), any(Order.class))).thenReturn(order);
+    void shouldAddOrderItem() throws Exception {
+        when(orderService.addOrderItem(any(Long.class), any(OrderItem.class))).thenReturn(testOrder);
 
-        mockMvc.perform(put("/api/orders/1")
+        mockMvc.perform(post("/api/orders/1/items")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(new ObjectMapper().writeValueAsString(order)))
+                        .content(objectMapper.writeValueAsString(testOrderItem)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
-
-        verify(orderService, times(1)).updateOrder(eq(1L), any(Order.class));
+                .andExpect(jsonPath("$.id").value(testOrder.getId()));
     }
 
     @Test
-    void testDeleteOrder() throws Exception {
-        doNothing().when(orderService).deleteOrder(1L);
+    void shouldGetOrder() throws Exception {
+        when(orderService.findByOrderNo("1")).thenReturn(Optional.of(testOrder));
 
-        mockMvc.perform(delete("/api/orders/1"))
-                .andExpect(status().isNoContent());
-
-        verify(orderService, times(1)).deleteOrder(1L);
-    }
-
-    @Test
-    void testGetOrdersByUserId() throws Exception {
-        List<Order> orders = Arrays.asList(order);
-        when(orderService.getOrdersByUserId(100L)).thenReturn(orders);
-
-        mockMvc.perform(get("/api/orders/user/100"))
+        mockMvc.perform(get("/api/orders/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));
-
-        verify(orderService, times(1)).getOrdersByUserId(100L);
+                .andExpect(jsonPath("$.id").value(testOrder.getId()))
+                .andExpect(jsonPath("$.status").value(testOrder.getStatus().toString()));
     }
 
     @Test
-    void testGetOrdersByStatus() throws Exception {
-        Order.OrderStatus status = Order.OrderStatus.PENDING;
-        order.setStatus(status);
-        List<Order> orders = Arrays.asList(order);
+    void shouldReturn404WhenOrderNotFound() throws Exception {
+        when(orderService.findByOrderNo("1")).thenReturn(Optional.empty());
 
-        when(orderService.getOrdersByStatus(status)).thenReturn(orders);
+        mockMvc.perform(get("/api/orders/1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldGetOrdersByStatus() throws Exception {
+        when(orderService.findOrdersByStatus(Order.OrderStatus.PENDING))
+                .thenReturn(Arrays.asList(testOrder));
 
         mockMvc.perform(get("/api/orders/status/PENDING"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));
-
-        verify(orderService, times(1)).getOrdersByStatus(status);
+                .andExpect(jsonPath("$[0].id").value(testOrder.getId()))
+                .andExpect(jsonPath("$[0].status").value(testOrder.getStatus().toString()));
     }
 
     @Test
-    void testGetOrdersByCreatedAtRange() throws Exception {
-        Timestamp startDate = Timestamp.valueOf("2024-01-01 00:00:00");
-        Timestamp endDate = Timestamp.valueOf("2024-12-31 23:59:59");
+    void shouldUpdateOrderStatus() throws Exception {
+        when(orderService.updateOrderStatus(1L, Order.OrderStatus.PROCESSING)).thenReturn(testOrder);
 
-        List<Order> orders = Arrays.asList(order);
-        when(orderService.getOrdersByCreatedAtRange(startDate, endDate)).thenReturn(orders);
-
-        mockMvc.perform(get("/api/orders/created")
-                        .param("startDate", "2024-01-01 00:00:00")
-                        .param("endDate", "2024-12-31 23:59:59"))
+        mockMvc.perform(put("/api/orders/1/status")
+                        .param("status", "PROCESSING"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));
-
-        verify(orderService, times(1)).getOrdersByCreatedAtRange(startDate, endDate);
+                .andExpect(jsonPath("$.id").value(testOrder.getId()));
     }
 
     @Test
-    void testGetOrdersByTotalPriceRange() throws Exception {
-        BigDecimal minPrice = new BigDecimal("100.00");
-        BigDecimal maxPrice = new BigDecimal("500.00");
+    void shouldConfirmOrder() throws Exception {
+        testOrder.setStatus(Order.OrderStatus.PROCESSING);
+        when(orderService.confirmOrder(1L)).thenReturn(testOrder);
 
-        List<Order> orders = Arrays.asList(order);
-        when(orderService.getOrdersByTotalPriceRange(minPrice, maxPrice)).thenReturn(orders);
-
-        mockMvc.perform(get("/api/orders/totalPrice")
-                        .param("minPrice", "100.00")
-                        .param("maxPrice", "500.00"))
+        mockMvc.perform(post("/api/orders/1/confirm"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));
+                .andExpect(jsonPath("$.status").value(testOrder.getStatus().toString()));
+    }
 
-        verify(orderService, times(1)).getOrdersByTotalPriceRange(minPrice, maxPrice);
+    @Test
+    void shouldShipOrder() throws Exception {
+        testOrder.setStatus(Order.OrderStatus.SHIPPED);
+        when(orderService.shipOrder(1L)).thenReturn(testOrder);
+
+        mockMvc.perform(post("/api/orders/1/ship"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(testOrder.getStatus().toString()));
+    }
+
+    @Test
+    void shouldCompleteOrder() throws Exception {
+        testOrder.setStatus(Order.OrderStatus.DELIVERED);
+        when(orderService.completeOrder(1L)).thenReturn(testOrder);
+
+        mockMvc.perform(post("/api/orders/1/complete"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(testOrder.getStatus().toString()));
+    }
+
+    @Test
+    void shouldFindByOrderNo() throws Exception {
+        when(orderService.findByOrderNo("ORD-2025-001")).thenReturn(Optional.of(testOrder));
+
+        mockMvc.perform(get("/api/orders/search")
+                        .param("orderNo", "ORD-2025-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderNo").value(testOrder.getOrderNo()));
+    }
+
+    @Test
+    void shouldHandleIllegalStateException() throws Exception {
+        when(orderService.confirmOrder(1L))
+                .thenThrow(new IllegalStateException("订单状态错误"));
+
+        mockMvc.perform(post("/api/orders/1/confirm"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("订单状态错误"));
+    }
+
+    @Test
+    void shouldHandleIllegalArgumentException() throws Exception {
+        when(orderService.confirmOrder(999L))
+                .thenThrow(new IllegalArgumentException("订单不存在"));
+
+        mockMvc.perform(post("/api/orders/999/confirm"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("订单不存在"));
     }
 }

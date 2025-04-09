@@ -1,125 +1,79 @@
 package com.example.warehousemanagement.controller;
 
 import com.example.warehousemanagement.entity.Inventory;
-import com.example.warehousemanagement.entity.Product;
-import com.example.warehousemanagement.entity.Warehouse;
+import com.example.warehousemanagement.exception.ConcurrentInventoryException;
 import com.example.warehousemanagement.service.InventoryService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
-import java.sql.Timestamp;
-import java.util.Arrays;
-import java.util.List;
-
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@WebMvcTest(InventoryController.class)
+@AutoConfigureMockMvc
+@ExtendWith(MockitoExtension.class)
 public class InventoryControllerTest {
 
+    @Autowired
     private MockMvc mockMvc;
 
     @Mock
     private InventoryService inventoryService;
 
-    @InjectMocks
-    private InventoryController inventoryController;
-
-    private Inventory inventory;
-
     @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(inventoryController).build();
-
-        inventory = new Inventory();
-        inventory.setId(1L);
-        inventory.setQuantity(100);
-        inventory.setUpdatedAt(new Timestamp(System.currentTimeMillis())); // 设置更新时间
-
-        // 创建 Warehouse 和 Product 对象
-        Warehouse warehouse = new Warehouse();
-        warehouse.setId(1L); // 假设有一个 ID
-        inventory.setWarehouse(warehouse);
-
-        Product product = new Product();
-        product.setId(1L); // 假设有一个 ID
-        inventory.setProduct(product);
+    void setup(WebApplicationContext webApplicationContext) {
+        InventoryController controller = webApplicationContext.getBean(InventoryController.class);
+        // 确保控制器已初始化完成
+        controller.setInventoryService(inventoryService);
+        // 验证注入结果
+        assertThat(controller).extracting("inventoryService").isSameAs(inventoryService);
     }
 
     @Test
-    public void testGetAllInventories() throws Exception {
-        List<Inventory> inventories = Arrays.asList(inventory, new Inventory());
-        when(inventoryService.getAllInventories()).thenReturn(inventories);
+    void getInventory_ShouldReturn200() throws Exception {
+        // 准备测试数据
+        Inventory mockInventory = new Inventory();
+        mockInventory.setId(1L);
+        mockInventory.setQuantity(100);
+        mockInventory.setVersion(0);
 
-        mockMvc.perform(get("/api/inventories"))
+        // 配置mock行为
+        given(inventoryService.getInventory(anyLong())).willReturn(mockInventory);
+
+        // 执行请求并验证
+        mockMvc.perform(get("/api/inventories/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
-
-        verify(inventoryService, times(1)).getAllInventories();
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.quantity").value(100));
     }
 
     @Test
-    public void testGetInventoryById_Success() throws Exception {
-        when(inventoryService.getInventoryById(1L)).thenReturn(inventory);
+    void adjustInventory_ShouldHandleConflict() throws Exception {
+        // 配置mock抛出并发异常
+        Mockito.doThrow(new ConcurrentInventoryException("Version conflict"))
+                .when(inventoryService)
+                .adjustInventoryQuantity(anyLong(), anyInt(), anyInt());
 
-        mockMvc.perform(get("/api/inventories/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
-
-        verify(inventoryService, times(1)).getInventoryById(1L);
-    }
-
-    @Test
-    public void testGetInventoryById_NotFound() throws Exception {
-        when(inventoryService.getInventoryById(1L)).thenReturn(null);
-
-        mockMvc.perform(get("/api/inventories/1"))
-                .andExpect(status().isNotFound());
-
-        verify(inventoryService, times(1)).getInventoryById(1L);
-    }
-
-    @Test
-    public void testCreateInventory() throws Exception {
-        when(inventoryService.createInventory(any(Inventory.class))).thenReturn(inventory);
-
-        mockMvc.perform(post("/api/inventories")
+        // 执行请求并验证
+        mockMvc.perform(put("/api/inventories/{id}/adjust", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(new ObjectMapper().writeValueAsString(inventory)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
-
-        verify(inventoryService, times(1)).createInventory(any(Inventory.class));
-    }
-
-    @Test
-    public void testUpdateInventory() throws Exception {
-        when(inventoryService.updateInventory(eq(1L), any(Inventory.class))).thenReturn(inventory);
-
-        mockMvc.perform(put("/api/inventories/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(new ObjectMapper().writeValueAsString(inventory)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
-
-        verify(inventoryService, times(1)).updateInventory(eq(1L), any(Inventory.class));
-    }
-
-    @Test
-    public void testDeleteInventory() throws Exception {
-        doNothing().when(inventoryService).deleteInventory(1L);
-
-        mockMvc.perform(delete("/api/inventories/1"))
-                .andExpect(status().isNoContent());
-
-        verify(inventoryService, times(1)).deleteInventory(1L);
+                        .content("{\"delta\":10,\"version\":0}"))
+                .andExpect(status().isConflict());
     }
 }

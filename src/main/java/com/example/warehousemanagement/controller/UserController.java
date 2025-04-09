@@ -3,6 +3,7 @@ package com.example.warehousemanagement.controller;
 import com.example.warehousemanagement.entity.User;
 import com.example.warehousemanagement.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/users") 
+@RequestMapping("/api/users")
 public class UserController {
 
     @Autowired
@@ -19,36 +20,50 @@ public class UserController {
     // 创建用户
     @PostMapping
     public ResponseEntity<User> createUser(@RequestBody User user) {
-        User createdUser = userService.createUser(user);
-        return ResponseEntity.ok(createdUser); // 返回创建的用户
+        User savedUser = userService.saveUser(user);
+        return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
     }
 
-    // 通过 ID 获取用户
-    @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        Optional<User> user = userService.getUserById(id);
-        return user.map(ResponseEntity::ok) // 如果用户存在，返回 200 OK
-                   .orElse(ResponseEntity.notFound().build()); // 如果用户不存在，返回 404 Not Found
+    // 根据用户名查找用户
+    @GetMapping("/{username}")
+    public ResponseEntity<User> findByUsername(@PathVariable String username) {
+        User user = userService.findByUsername(username);
+        if (user != null) {
+            return new ResponseEntity<>(user, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
     }
 
-    // 通过用户名获取用户
-    @GetMapping("/username/{username}")
-    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
-        User user = userService.getUserByUsername(username);
-        return user != null ? ResponseEntity.ok(user) : ResponseEntity.notFound().build(); // 返回用户或 404
+    // 根据角色名查找用户列表
+    @GetMapping("/role/{roleName}")
+    public ResponseEntity<List<User>> findUsersByRoleName(@PathVariable String roleName) {
+        List<User> users = userService.findUsersByRoleName(roleName);
+        return new ResponseEntity<>(users, HttpStatus.OK);
     }
 
-    // 获取所有用户
-    @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.getAllUsers();
-        return ResponseEntity.ok(users); // 返回用户列表
+    // 根据 ID 查找用户
+    @GetMapping("/id/{id}")
+    public ResponseEntity<Optional<User>> findById(@PathVariable Long id) {
+        Optional<User> user = userService.findById(id);
+        if (user.isPresent()) {
+            return new ResponseEntity<>(user, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
     }
 
     // 删除用户
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
-        return ResponseEntity.noContent().build(); // 返回 204 No Content
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    // 获取所有用户
+    @GetMapping
+    public ResponseEntity<List<User>> findAllUsers() {
+        List<User> users = userService.findAllUsers();
+        return new ResponseEntity<>(users, HttpStatus.OK);
     }
 }

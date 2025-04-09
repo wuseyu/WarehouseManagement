@@ -1,75 +1,124 @@
 package com.example.warehousemanagement.controller;
 
 import com.example.warehousemanagement.entity.Order;
+import com.example.warehousemanagement.entity.OrderItem;
 import com.example.warehousemanagement.service.OrderService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.sql.Timestamp;
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
 
-    @Autowired
-    private OrderService orderService;
+    private final OrderService orderService;
 
-    // 获取所有订单
-    @GetMapping
-    public List<Order> getAllOrders() {
-        return orderService.getAllOrders();
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
     }
 
-    // 根据 ID 获取订单
-    @GetMapping("/{id}")
-    public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
-        Order order = orderService.getOrderById(id);
-        return order != null ? ResponseEntity.ok(order) : ResponseEntity.notFound().build();
-    }
-
-    // 创建新订单
+    /**
+     * 创建订单
+     */
     @PostMapping
-    public Order createOrder(@RequestBody Order order) {
-        return orderService.createOrder(order);
+    public ResponseEntity<Order> createOrder(@RequestBody @Valid Order order) {
+        return ResponseEntity.ok(orderService.createOrder(order));
     }
 
-    // 更新订单
-    @PutMapping("/{id}")
-    public Order updateOrder(@PathVariable Long id, @RequestBody Order order) {
-        return orderService.updateOrder(id, order);
+    /**
+     * 添加订单项
+     */
+    @PostMapping("/{orderId}/items")
+    public ResponseEntity<Order> addOrderItem(
+            @PathVariable Long orderId,
+            @RequestBody @Valid OrderItem orderItem) {
+        return ResponseEntity.ok(orderService.addOrderItem(orderId, orderItem));
     }
 
-    // 删除订单
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
-        orderService.deleteOrder(id);
-        return ResponseEntity.noContent().build();
+    /**
+     * 获取订单详情
+     */
+    @GetMapping("/{orderId}")
+    public ResponseEntity<Order> getOrder(@PathVariable Long orderId) {
+        return orderService.findByOrderNo(orderId.toString())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    // 根据用户 ID 查找订单
+    /**
+     * 获取用户的所有订单
+     */
     @GetMapping("/user/{userId}")
-    public List<Order> getOrdersByUserId(@PathVariable Long userId) {
-        return orderService.getOrdersByUserId(userId);
+    public ResponseEntity<List<Order>> getUserOrders(@PathVariable Long userId) {
+        // TODO: 需要先获取用户信息
+        return ResponseEntity.ok(orderService.findOrdersByUser(null));
     }
 
-    // 根据订单状态查找订单
+    /**
+     * 获取指定状态的订单
+     */
     @GetMapping("/status/{status}")
-    public List<Order> getOrdersByStatus(@PathVariable Order.OrderStatus status) {
-        return orderService.getOrdersByStatus(status);
+    public ResponseEntity<List<Order>> getOrdersByStatus(
+            @PathVariable Order.OrderStatus status) {
+        return ResponseEntity.ok(orderService.findOrdersByStatus(status));
     }
 
-    // 根据创建时间范围查找订单
-    @GetMapping("/created")
-    public List<Order> getOrdersByCreatedAtRange(@RequestParam Timestamp startDate, @RequestParam Timestamp endDate) {
-        return orderService.getOrdersByCreatedAtRange(startDate, endDate);
+    /**
+     * 更新订单状态
+     */
+    @PutMapping("/{orderId}/status")
+    public ResponseEntity<Order> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestParam Order.OrderStatus status) {
+        return ResponseEntity.ok(orderService.updateOrderStatus(orderId, status));
     }
 
-    // 根据总金额范围查找订单
-    @GetMapping("/totalPrice")
-    public List<Order> getOrdersByTotalPriceRange(@RequestParam BigDecimal minPrice, @RequestParam BigDecimal maxPrice) {
-        return orderService.getOrdersByTotalPriceRange(minPrice, maxPrice);
+    /**
+     * 确认订单
+     */
+    @PostMapping("/{orderId}/confirm")
+    public ResponseEntity<Order> confirmOrder(@PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.confirmOrder(orderId));
+    }
+
+    /**
+     * 发货
+     */
+    @PostMapping("/{orderId}/ship")
+    public ResponseEntity<Order> shipOrder(@PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.shipOrder(orderId));
+    }
+
+    /**
+     * 完成订单
+     */
+    @PostMapping("/{orderId}/complete")
+    public ResponseEntity<Order> completeOrder(@PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.completeOrder(orderId));
+    }
+
+    /**
+     * 根据订单号查询
+     */
+    @GetMapping("/search")
+    public ResponseEntity<Order> findByOrderNo(@RequestParam String orderNo) {
+        return orderService.findByOrderNo(orderNo)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * 处理订单相关的异常
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<String> handleIllegalStateException(IllegalStateException e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
     }
 }

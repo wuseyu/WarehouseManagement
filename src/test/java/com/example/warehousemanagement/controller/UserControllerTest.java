@@ -2,145 +2,115 @@ package com.example.warehousemanagement.controller;
 
 import com.example.warehousemanagement.entity.User;
 import com.example.warehousemanagement.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mockito;
+import org.mockito.quality.Strictness;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.sql.Timestamp;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
-public class UserControllerTest {
+@WebMvcTest(UserController.class)
+class UserControllerTest {
 
-    @Mock
-    private UserService userService;
-
-    @InjectMocks
-    private UserController userController;
-
+    @Autowired
     private MockMvc mockMvc;
 
+    @MockBean  // 使用 @MockBean 替代自定义的 TestConfig
+    private UserService userService;
+
+    @Autowired
+    private ObjectMapper objectMapper;  // 用于转换对象到 JSON
+
+    // 初始化模拟对象
     @BeforeEach
-    public void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(userController).build();
+    void setup() {
+        Mockito.reset(userService); // 每次测试前重置 mock
+
+        // 保持原有的 testUser 初始化逻辑
+        testUser.setId(1L);
+        testUser.setUsername("testUser");
+        testUser.setPassword("password123");
+        testUser.setEmail("test@example.com");
+    }
+
+    private final User testUser = new User();
+
+    {
+        testUser.setId(1L);
+        testUser.setUsername("testUser");
+        testUser.setPassword("password123");
+        testUser.setEmail("test@example.com");
     }
 
     @Test
-    public void testCreateUser() throws Exception {
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("JohnDoe");
-        user.setPassword("password123");
-        user.setEmail("johndoe@example.com");
-        user.setPhone("1234567890");
-        user.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-        user.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
-
-        when(userService.createUser(any(User.class))).thenReturn(user);
+    void createUser_ShouldReturnCreated() throws Exception {
+        when(userService.saveUser(any(User.class))).thenReturn(testUser);
 
         mockMvc.perform(post("/api/users")
-                        .contentType("application/json")
-                        .content("{\"username\":\"JohnDoe\",\"password\":\"password123\",\"email\":\"johndoe@example.com\",\"phone\":\"1234567890\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("JohnDoe"))
-                .andExpect(jsonPath("$.email").value("johndoe@example.com"))
-                .andExpect(jsonPath("$.phone").value("1234567890"));
-
-        verify(userService, times(1)).createUser(any(User.class));
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"testUser\",\"password\":\"password123\",\"email\":\"test@example.com\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.username").value("testUser"));
     }
 
     @Test
-    public void testGetUserById() throws Exception {
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("JohnDoe");
-        user.setPassword("password123");
-        user.setEmail("johndoe@example.com");
-        user.setPhone("1234567890");
-        user.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-        user.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
+    void findByUsername_ShouldReturnUser() throws Exception {
+        when(userService.findByUsername("testUser")).thenReturn(testUser);
 
-        when(userService.getUserById(1L)).thenReturn(Optional.of(user));
-
-        mockMvc.perform(get("/api/users/1"))
+        mockMvc.perform(get("/api/users/testUser"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("JohnDoe"))
-                .andExpect(jsonPath("$.email").value("johndoe@example.com"))
-                .andExpect(jsonPath("$.phone").value("1234567890"));
-
-        verify(userService, times(1)).getUserById(1L);
+                .andExpect(jsonPath("$.email").value("test@example.com"));
     }
 
     @Test
-    public void testGetUserByUsername() throws Exception {
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("JohnDoe");
-        user.setPassword("password123");
-        user.setEmail("johndoe@example.com");
-        user.setPhone("1234567890");
-        user.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-        user.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
+    void findById_ShouldReturnUser() throws Exception {
+        when(userService.findById(1L)).thenReturn(Optional.of(testUser));
 
-        when(userService.getUserByUsername("JohnDoe")).thenReturn(user);
-
-        mockMvc.perform(get("/api/users/username/JohnDoe"))
+        mockMvc.perform(get("/api/users/id/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("JohnDoe"))
-                .andExpect(jsonPath("$.email").value("johndoe@example.com"))
-                .andExpect(jsonPath("$.phone").value("1234567890"));
-
-        verify(userService, times(1)).getUserByUsername("JohnDoe");
+                .andExpect(jsonPath("$.username").value("testUser"));
     }
 
     @Test
-    public void testGetAllUsers() throws Exception {
-        User user1 = new User();
-        user1.setId(1L);
-        user1.setUsername("JohnDoe");
-        user1.setPassword("password123");
-        user1.setEmail("johndoe@example.com");
-        user1.setPhone("1234567890");
-        user1.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-        user1.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
-
-        User user2 = new User();
-        user2.setId(2L);
-        user2.setUsername("JaneDoe");
-        user2.setPassword("password456");
-        user2.setEmail("janedoe@example.com");
-        user2.setPhone("0987654321");
-        user2.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-        user2.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
-
-        when(userService.getAllUsers()).thenReturn(Arrays.asList(user1, user2));
-
-        mockMvc.perform(get("/api/users"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].username").value("JohnDoe"))
-                .andExpect(jsonPath("$[1].username").value("JaneDoe"));
-
-        verify(userService, times(1)).getAllUsers();
-    }
-
-    @Test
-    public void testDeleteUser() throws Exception {
+    void deleteUser_ShouldReturnNoContent() throws Exception {
         doNothing().when(userService).deleteUser(1L);
 
         mockMvc.perform(delete("/api/users/1"))
-                .andExpect(status().isNoContent()); // 修改为期望 204 状态码
+                .andExpect(status().isNoContent());
+    }
 
-        verify(userService, times(1)).deleteUser(1L);
+    @Test
+    void findAllUsers_ShouldReturnUserList() throws Exception {
+        when(userService.findAllUsers()).thenReturn(Collections.singletonList(testUser));
+
+        mockMvc.perform(get("/api/users"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].username").value("testUser"));
+    }
+
+    @Test
+    void findUsersByRoleName_ShouldReturnFilteredList() throws Exception {
+        when(userService.findUsersByRoleName("ADMIN")).thenReturn(Collections.singletonList(testUser));
+
+        mockMvc.perform(get("/api/users/role/ADMIN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].roles[0].name").doesNotExist()); // 根据实际角色结构调整
     }
 }

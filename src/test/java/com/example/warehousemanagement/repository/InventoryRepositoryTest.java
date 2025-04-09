@@ -1,87 +1,62 @@
 package com.example.warehousemanagement.repository;
 
+
 import com.example.warehousemanagement.entity.Inventory;
 import com.example.warehousemanagement.entity.Product;
 import com.example.warehousemanagement.entity.Warehouse;
-import com.example.warehousemanagement.service.InventoryService;
-import org.junit.jupiter.api.BeforeEach;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
 import java.sql.Timestamp;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-public class InventoryRepositoryTest {
+@DataJpaTest
+class InventoryRepositoryTest {
 
-    @Mock
+    @Autowired
     private InventoryRepository inventoryRepository;
 
-    @InjectMocks
-    private InventoryService inventoryService;
+    @Autowired
+    private TestEntityManager entityManager;
 
-    private Inventory inventory;
-
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
-        inventory = new Inventory();
-        inventory.setId(1L);
-
-        // 创建 Warehouse 和 Product 对象
+    private Inventory createInventory() {
         Warehouse warehouse = new Warehouse();
-        warehouse.setId(1L); // 假设有一个 ID
+        warehouse.setName("Main");
+        warehouse.setLocation("Shanghai");
+        Warehouse savedWarehouse = entityManager.persistFlushFind(warehouse);
 
-        Product product = new Product();
-        product.setId(1L); // 假设有一个 ID
-
-        inventory.setWarehouse(warehouse);
-        inventory.setProduct(product);
-        inventory.setQuantity(100);
-        inventory.setUpdatedAt(new Timestamp(System.currentTimeMillis())); // 设置更新时间
+        Product product = new Product("A001", "Laptop");
+        product.setCategory("Electronics");
+        Product savedProduct = entityManager.persistFlushFind(product);
+        Inventory inventory = new Inventory(savedWarehouse, savedProduct, 100);
+        inventory.setCreatedAt(new Timestamp(System.currentTimeMillis())); // 确保时间设置
+        return entityManager.persistFlushFind(inventory);
     }
 
     @Test
-    public void testCreateInventory() {
-        when(inventoryRepository.save(any(Inventory.class))).thenReturn(inventory);
+    @Transactional
+    void shouldAdjustQuantityWithVersion() {
+        Inventory inv = createInventory();
 
-        Inventory createdInventory = inventoryService.createInventory(inventory);
-        assertNotNull(createdInventory);
-        assertEquals(1L, createdInventory.getId());
-        verify(inventoryRepository, times(1)).save(any(Inventory.class));
-    }
 
-    @Test
-    public void testGetInventoryById() {
-        when(inventoryRepository.findById(1L)).thenReturn(Optional.of(inventory));
+        entityManager.flush();
+        int originalVersion = inv.getVersion();
 
-        Inventory foundInventory = inventoryService.getInventoryById(1L);
-        assertNotNull(foundInventory);
-        assertEquals(1L, foundInventory.getId());
-        verify(inventoryRepository, times(1)).findById(1L);
-    }
+        int affectedRows = inventoryRepository.adjustQuantity(
+                inv.getId(),
+                10,
+                originalVersion);
 
-    @Test
-    public void testGetAllInventories() {
-        List<Inventory> inventories = Arrays.asList(inventory, new Inventory());
-        when(inventoryRepository.findAll()).thenReturn(inventories);
+        entityManager.flush();
+        entityManager.clear();
 
-        List<Inventory> result = inventoryService.getAllInventories();
-        assertEquals(2, result.size());
-        verify(inventoryRepository, times(1)).findAll();
-    }
-
-    @Test
-    public void testDeleteInventory() {
-        doNothing().when(inventoryRepository).deleteById(1L);
-
-        inventoryService.deleteInventory(1L);
-        verify(inventoryRepository, times(1)).deleteById(1L);
+        Inventory updated = inventoryRepository.findById(inv.getId()).get();
+        assertThat(affectedRows).isEqualTo(1);
+        assertThat(updated.getQuantity()).isEqualTo(110);
+        assertThat(updated.getVersion()).isEqualTo(originalVersion + 1);
     }
 }

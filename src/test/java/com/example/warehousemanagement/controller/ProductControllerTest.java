@@ -1,162 +1,159 @@
 package com.example.warehousemanagement.controller;
 
 import com.example.warehousemanagement.entity.Product;
-import com.example.warehousemanagement.service.ProductService;
-import org.junit.jupiter.api.BeforeEach;
+import com.example.warehousemanagement.repository.ProductRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@WebMvcTest(ProductController.class)
 public class ProductControllerTest {
 
-    @Mock
-    private ProductService productService;
-
-    @InjectMocks
-    private ProductController productController;
-
+    @Autowired
     private MockMvc mockMvc;
 
-    private Product product;
+    @MockBean
+    private ProductRepository productRepository;
 
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(productController).build();
+    @Autowired
+    private ObjectMapper objectMapper;
 
-        product = new Product();
+    private Product createTestProduct() {
+        Product product = new Product();
         product.setId(1L);
-        product.setName("Test Product");
-        product.setDescription("This is a test product.");
-        product.setCategory("Test Category");
-        product.setPrice(BigDecimal.valueOf(99.99));
+        product.setName("测试商品");
+        product.setDescription("这是一个测试商品");
+        product.setCategory("测试分类");
         product.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+        return product;
     }
 
     @Test
-    public void testGetAllProducts() throws Exception {
-        Product product2 = new Product();
-        product2.setId(2L);
-        product2.setName("Another Product");
-        product2.setPrice(BigDecimal.valueOf(49.99));
-
-        List<Product> products = Arrays.asList(product, product2);
-        when(productService.getAllProducts()).thenReturn(products);
-
-        mockMvc.perform(get("/api/products"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Test Product"))
-                .andExpect(jsonPath("$[1].name").value("Another Product"));
-
-        verify(productService, times(1)).getAllProducts();
-    }
-
-    @Test
-    public void testGetProductById() throws Exception {
-        when(productService.getProductById(1L)).thenReturn(Optional.of(product));
-
-        mockMvc.perform(get("/api/products/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Test Product"));
-
-        verify(productService, times(1)).getProductById(1L);
-    }
-
-    @Test
-    public void testGetProductByIdNotFound() throws Exception {
-        when(productService.getProductById(1L)).thenReturn(Optional.empty());
-
-        mockMvc.perform(get("/api/products/1"))
-                .andExpect(status().isNotFound());
-
-        verify(productService, times(1)).getProductById(1L);
-    }
-
-    @Test
-    public void testCreateProduct() throws Exception {
-        when(productService.createProduct(any(Product.class))).thenReturn(product);
+    void shouldCreateProduct() throws Exception {
+        Product product = createTestProduct();
+        when(productRepository.save(any(Product.class))).thenReturn(product);
 
         mockMvc.perform(post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Test Product\",\"description\":\"This is a test product.\",\"category\":\"Test Category\",\"price\":99.99}"))
+                        .content(objectMapper.writeValueAsString(product)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Test Product"));
-
-        verify(productService, times(1)).createProduct(any(Product.class));
+                .andExpect(jsonPath("$.id").value(product.getId()))
+                .andExpect(jsonPath("$.name").value(product.getName()))
+                .andExpect(jsonPath("$.category").value(product.getCategory()));
     }
 
     @Test
-    public void testUpdateProduct() throws Exception {
-        when(productService.updateProduct(eq(1L), any(Product.class))).thenReturn(product);
+    void shouldGetProduct() throws Exception {
+        Product product = createTestProduct();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        mockMvc.perform(get("/api/products/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(product.getId()))
+                .andExpect(jsonPath("$.name").value(product.getName()));
+    }
+
+    @Test
+    void shouldReturn404WhenProductNotFound() throws Exception {
+        when(productRepository.findById(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/products/1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldGetAllProducts() throws Exception {
+        Product product1 = createTestProduct();
+        Product product2 = createTestProduct();
+        product2.setId(2L);
+        product2.setName("测试商品2");
+
+        when(productRepository.findAll()).thenReturn(Arrays.asList(product1, product2));
+
+        mockMvc.perform(get("/api/products"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(product1.getId()))
+                .andExpect(jsonPath("$[0].name").value(product1.getName()))
+                .andExpect(jsonPath("$[1].id").value(product2.getId()))
+                .andExpect(jsonPath("$[1].name").value(product2.getName()));
+    }
+
+    @Test
+    void shouldUpdateProduct() throws Exception {
+        Product product = createTestProduct();
+        when(productRepository.existsById(1L)).thenReturn(true);
+        when(productRepository.save(any(Product.class))).thenReturn(product);
 
         mockMvc.perform(put("/api/products/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Updated Product\",\"description\":\"Updated description.\",\"category\":\"Updated Category\",\"price\":89.99}"))
+                        .content(objectMapper.writeValueAsString(product)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Test Product"));
-
-        verify(productService, times(1)).updateProduct(eq(1L), any(Product.class));
+                .andExpect(jsonPath("$.id").value(product.getId()))
+                .andExpect(jsonPath("$.name").value(product.getName()));
     }
 
     @Test
-    public void testDeleteProduct() throws Exception {
-        doNothing().when(productService).deleteProduct(1L);
+    void shouldReturn404WhenUpdatingNonExistingProduct() throws Exception {
+        Product product = createTestProduct();
+        when(productRepository.existsById(1L)).thenReturn(false);
+
+        mockMvc.perform(put("/api/products/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(product)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldDeleteProduct() throws Exception {
+        when(productRepository.existsById(1L)).thenReturn(true);
 
         mockMvc.perform(delete("/api/products/1"))
-                .andExpect(status().isNoContent());
-
-        verify(productService, times(1)).deleteProduct(1L);
+                .andExpect(status().isOk());
     }
 
     @Test
-    public void testGetProductsByName() throws Exception {
-        when(productService.getProductsByName("Test Product")).thenReturn(Arrays.asList(product));
+    void shouldReturn404WhenDeletingNonExistingProduct() throws Exception {
+        when(productRepository.existsById(1L)).thenReturn(false);
 
-        mockMvc.perform(get("/api/products/search?name=Test Product"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Test Product"));
-
-        verify(productService, times(1)).getProductsByName("Test Product");
+        mockMvc.perform(delete("/api/products/1"))
+                .andExpect(status().isNotFound());
     }
 
-/**
- * todo
- */
+    @Test
+    void shouldSearchProductsByName() throws Exception {
+        Product product = createTestProduct();
+        when(productRepository.findByNameContaining("测试")).thenReturn(Arrays.asList(product));
 
-//    @Test
-//    public void testGetProductsByPriceRange() throws Exception {
-//        Product product2 = new Product();
-//        product2.setId(2L);
-//        product2.setName("Cheap Product");
-//        product2.setPrice(BigDecimal.valueOf(49.99));
-//        product2.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-//
-//        // 模拟返回价格在区间内的产品
-//        when(productService.getProductsByPriceRange(BigDecimal.valueOf(30.00), BigDecimal.valueOf(80.00)))
-//                .thenReturn(Arrays.asList(product2)); // 只返回价格在区间内的产品
-//
-//        mockMvc.perform(get("/api/products/search/price?minPrice=30.00&maxPrice=80.00"))
-//                .andDo(print()) // 打印响应内容
-//                .andExpect(status().isOk())
-//                .andExpect(jsonPath("$[?(@.id == 2)].name").value("Cheap Product")); // 使用 ID 查找产品名称
-//
-//        verify(productService, times(1)).getProductsByPriceRange(BigDecimal.valueOf(30.00), BigDecimal.valueOf(80.00));
-//    }
+        mockMvc.perform(get("/api/products/search")
+                        .param("name", "测试"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(product.getId()))
+                .andExpect(jsonPath("$[0].name").value(product.getName()));
+    }
 
+    @Test
+    void shouldSearchProductsByCategory() throws Exception {
+        Product product = createTestProduct();
+        when(productRepository.findByCategory("测试分类")).thenReturn(Arrays.asList(product));
+
+        mockMvc.perform(get("/api/products/search")
+                        .param("category", "测试分类"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(product.getId()))
+                .andExpect(jsonPath("$[0].category").value(product.getCategory()));
+    }
 }

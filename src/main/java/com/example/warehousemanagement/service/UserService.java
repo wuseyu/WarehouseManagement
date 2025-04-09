@@ -14,28 +14,55 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    // 创建新用户
-    public User createUser(User user) {
-        return userRepository.save(user);
-    }
-
-    // 通过 ID 获取用户
-    public Optional<User> getUserById(Long id) {
-        return userRepository.findById(id);
-    }
-
-    // 通过用户名获取用户
-    public User getUserByUsername(String username) {
+    /**
+     * 根据用户名查找用户
+     * @param username 用户名
+     * @return 用户实体
+     */
+    public User findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
-    // 获取所有用户
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    /**
+     * 根据角色名称查找用户
+     * @param roleName 角色名称
+     * @return 用户列表
+     */
+    public List<User> findUsersByRoleName(String roleName) {
+        return userRepository.findUsersByRoleName(roleName);
     }
 
-    // 删除用户
+    /**
+     * 保存用户
+     * @param user 用户实体
+     * @return 保存后的用户实体
+     */
+    public User saveUser(User user) {
+        return userRepository.save(user);
+    }
+
+    /**
+     * 根据 ID 查找用户
+     * @param id 用户 ID
+     * @return 包含用户实体的 Optional 对象
+     */
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
+    }
+
+    /**
+     * 删除用户
+     * @param id 用户 ID
+     */
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
+    }
+
+    /**
+     * 获取所有用户
+     * @return 用户列表
+     */
+    public List<User> findAllUsers() {
+        return userRepository.findAll();
     }
 }

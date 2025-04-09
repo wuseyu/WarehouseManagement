@@ -59,9 +59,10 @@ public class Order {
     private Task task;
 
     // 🌟 业务方法：自动计算总金额
+// 在 Order.java 中
     public void calculateTotalAmount() {
         BigDecimal amount = orderItems.stream()
-                .map(item -> item.getProduct().getSellingPrice().multiply(new BigDecimal(item.getQuantity())))
+                .map(item -> item.getUnitPrice().multiply(new BigDecimal(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         this.totalAmount = amount;
     }
