@@ -46,9 +46,6 @@ public class InventoryControllerTest {
         testInventory.setId(1L);
         testInventory.setQuantity(100);
         testInventory.setVersion(0);
-        
-        // 设置service
-        inventoryController.setInventoryService(inventoryService);
     }
 
     @Test

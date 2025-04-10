@@ -5,6 +5,7 @@ import com.example.warehousemanagement.exception.ConcurrentInventoryException;
 import com.example.warehousemanagement.exception.NotFoundException;
 import com.example.warehousemanagement.service.InventoryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -20,6 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class InventoryController {
 
+    @Autowired
     private InventoryService inventoryService;
 
     // 获取库存详情
@@ -83,10 +85,6 @@ public class InventoryController {
     @ExceptionHandler(ConcurrentInventoryException.class)
     public String handleConcurrentConflict(ConcurrentInventoryException e) {
         return e.getMessage();
-    }
-
-    public void setInventoryService(InventoryService inventoryService) {
-        this.inventoryService = inventoryService;
     }
 
     // DTO定义

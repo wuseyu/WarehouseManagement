@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,11 +36,12 @@ public class InventoryService {
 
     @Transactional
     @PreAuthorize("@customSecurityExpression.hasPermission('INVENTORY_UPDATE')")
-    public void adjustInventoryQuantity(Long id, Integer delta, Integer expectedVersion) {
-        int affectedRows = inventoryRepository.adjustQuantity(id, delta, expectedVersion);
+    public Inventory adjustInventoryQuantity(Long inventoryId, Integer delta, Integer version) {
+        int affectedRows = inventoryRepository.adjustQuantity(inventoryId, delta, version);
         if (affectedRows == 0) {
             throw new ConcurrentInventoryException("Inventory updated by another transaction");
         }
+        return getInventory(inventoryId);
     }
 
     @Transactional(readOnly = true)
@@ -58,5 +60,11 @@ public class InventoryService {
     @PreAuthorize("@customSecurityExpression.hasPermission('INVENTORY_VIEW')")
     public Page<Inventory> listInventoryByStatus(InventoryStatus status, Pageable pageable) {
         return inventoryRepository.findByStatus(status, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("@customSecurityExpression.hasPermission('INVENTORY_VIEW')")
+    public Optional<Inventory> findByWarehouseAndProduct(Long warehouseId, Long productId) {
+        return inventoryRepository.findByWarehouseIdAndProductId(warehouseId, productId).stream().findFirst();
     }
 }

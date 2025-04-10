@@ -4,6 +4,8 @@ import com.example.warehousemanagement.entity.User;
 import com.example.warehousemanagement.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -78,5 +80,22 @@ public class UserService {
     @PreAuthorize("@customSecurityExpression.hasPermission('USER_VIEW')")
     public List<User> findAllUsers() {
         return userRepository.findAll();
+    }
+
+    /**
+     * 检查当前登录的用户是否是指定ID的用户
+     * @param userId 用户ID
+     * @return 如果当前用户就是指定ID的用户，则返回true
+     */
+    public boolean isCurrentUser(Long userId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        
+        String currentUsername = authentication.getName();
+        Optional<User> userOptional = userRepository.findById(userId);
+        
+        return userOptional.isPresent() && userOptional.get().getUsername().equals(currentUsername);
     }
 }

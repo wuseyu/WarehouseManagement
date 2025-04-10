@@ -4,6 +4,7 @@ import com.example.warehousemanagement.entity.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -14,4 +15,7 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
     
     // 根据角色类型查找角色
     Optional<Role> findByType(Role.RoleType type);
+    
+    // 查找非指定类型的所有角色
+    List<Role> findByTypeNot(Role.RoleType type);
 }
