@@ -17,6 +17,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.expression.WebExpressionAuthorizationManager;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,10 +38,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // 使用自定义CORS配置
                 .csrf(csrf -> csrf.disable()) // 在API应用中通常禁用CSRF
                 .authorizeHttpRequests(authorize -> authorize
                         // 根路径和登录相关接口不需要认证
-                        .requestMatchers("/", "/api/auth/**").permitAll()
+                        .requestMatchers("/", "/api/auth/**", "/error").permitAll()
                         // 订单相关接口
                         .requestMatchers("/api/orders").access(new WebExpressionAuthorizationManager("@customSecurityExpression.hasPermission('ORDER_CREATE')"))
                         .requestMatchers("/api/orders/{orderId}/items").access(new WebExpressionAuthorizationManager("@customSecurityExpression.hasPermission('ORDER_ITEM_CREATE')"))
@@ -118,5 +125,26 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000", 
+                "http://localhost:3001", 
+                "http://localhost:3002", 
+                "http://localhost"
+        ));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Collections.singletonList("*"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        // 设置允许凭证为false，避免CORS预检问题
+        configuration.setAllowCredentials(false);
+        configuration.setMaxAge(3600L);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
