@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public class InventoryController {
 
     // 获取库存详情
     @GetMapping("/{id}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('INVENTORY_VIEW')")
     public ResponseEntity<Inventory> getInventory(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryService.getInventory(id));
     }
@@ -30,17 +32,19 @@ public class InventoryController {
     // 创建库存记录
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@customSecurityExpression.hasPermission('INVENTORY_CREATE')")
     public Inventory createInventory(@RequestBody Inventory inventory) {
         return inventoryService.createInventory(inventory);
     }
 
     // 调整库存数量（带乐观锁）
     @PutMapping("/{id}/adjust")
+    @PreAuthorize("@customSecurityExpression.hasPermission('INVENTORY_UPDATE')")
     public void adjustQuantity(
             @PathVariable Long id,
             @RequestBody AdjustmentRequest request) {
         inventoryService.adjustInventoryQuantity(
-                id, 
+                id,
                 request.delta(),
                 request.version()
         );
@@ -48,16 +52,18 @@ public class InventoryController {
 
     // 分页查询库存
     @GetMapping
+    @PreAuthorize("@customSecurityExpression.hasPermission('INVENTORY_VIEW')")
     public Page<Inventory> listInventories(
             @RequestParam(required = false) Inventory.InventoryStatus status,
             @PageableDefault(sort = "createdAt") Pageable pageable) {
-        return status != null ? 
+        return status != null ?
                 inventoryService.listInventoryByStatus(status, pageable) :
                 inventoryService.listInventoryByStatus(null, pageable);
     }
 
     // 批量更新库存状态
     @PutMapping("/bulk-status")
+    @PreAuthorize("@customSecurityExpression.hasPermission('INVENTORY_UPDATE')")
     public void bulkUpdateStatus(
             @RequestBody BulkStatusUpdateRequest request) {
         inventoryService.bulkUpdateStatus(
@@ -86,7 +92,7 @@ public class InventoryController {
     // DTO定义
     public record AdjustmentRequest(Integer delta, Integer version) {}
     public record BulkStatusUpdateRequest(
-            Inventory.InventoryStatus status, 
+            Inventory.InventoryStatus status,
             List<Long> ids
     ) {}
 }

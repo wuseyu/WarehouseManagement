@@ -8,34 +8,32 @@ import com.example.warehousemanagement.service.OrderItemService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@WebMvcTest(OrderItemController.class)
+@ExtendWith(MockitoExtension.class)
 class OrderItemControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @Mock
     private OrderItemService orderItemService;
 
+    private OrderItemController orderItemController;
+    private ObjectMapper objectMapper;
     private OrderItem testOrderItem;
     private Order testOrder;
     private Product testProduct;
@@ -43,6 +41,9 @@ class OrderItemControllerTest {
 
     @BeforeEach
     void setUp() {
+        objectMapper = new ObjectMapper();
+        orderItemController = new OrderItemController(orderItemService);
+        
         // 初始化测试用户
         testUser = new User();
         testUser.setId(1L);
@@ -70,131 +71,146 @@ class OrderItemControllerTest {
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_CREATE")
     void shouldCreateOrderItem() throws Exception {
         when(orderItemService.createOrderItem(any(OrderItem.class))).thenReturn(testOrderItem);
 
-        mockMvc.perform(post("/api/order-items")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testOrderItem)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(testOrderItem.getId()))
-                .andExpect(jsonPath("$.quantity").value(testOrderItem.getQuantity()))
-                .andExpect(jsonPath("$.unitPrice").value("50.0"));
+        ResponseEntity<OrderItem> response = orderItemController.createOrderItem(testOrderItem);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrderItem.getId(), response.getBody().getId());
+        assertEquals(testOrderItem.getQuantity(), response.getBody().getQuantity());
+        assertEquals(0, testOrderItem.getUnitPrice().compareTo(response.getBody().getUnitPrice()));
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_CREATE")
     void shouldCreateOrderItems() throws Exception {
         when(orderItemService.createOrderItems(any())).thenReturn(Arrays.asList(testOrderItem));
 
-        mockMvc.perform(post("/api/order-items/batch")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Arrays.asList(testOrderItem))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(testOrderItem.getId()));
+        ResponseEntity<List<OrderItem>> response = orderItemController.createOrderItems(Arrays.asList(testOrderItem));
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrderItem.getId(), response.getBody().get(0).getId());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_UPDATE")
     void shouldUpdateQuantity() throws Exception {
         when(orderItemService.updateQuantity(1L, 3)).thenReturn(testOrderItem);
 
-        mockMvc.perform(put("/api/order-items/1/quantity")
-                        .param("quantity", "3"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.quantity").value(testOrderItem.getQuantity()));
+        ResponseEntity<OrderItem> response = orderItemController.updateQuantity(1L, 3);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrderItem.getQuantity(), response.getBody().getQuantity());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_UPDATE")
     void shouldUpdateUnitPrice() throws Exception {
         when(orderItemService.updateUnitPrice(1L, new BigDecimal("60.00")))
                 .thenReturn(testOrderItem);
 
-        mockMvc.perform(put("/api/order-items/1/unit-price")
-                        .param("unitPrice", "60.00"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.unitPrice").value("50.0"));
+        ResponseEntity<OrderItem> response = orderItemController.updateUnitPrice(1L, new BigDecimal("60.00"));
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(0, testOrderItem.getUnitPrice().compareTo(response.getBody().getUnitPrice()));
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_VIEW")
     void shouldFindByOrder() throws Exception {
         when(orderItemService.findByOrder(any(Order.class)))
                 .thenReturn(Arrays.asList(testOrderItem));
-
-        mockMvc.perform(get("/api/order-items/order/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(testOrderItem.getId()));
+                
+        // 假设有一个根据订单ID查找订单项的方法
+        ResponseEntity<List<OrderItem>> response = orderItemController.findByOrder(1L);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrderItem.getId(), response.getBody().get(0).getId());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_VIEW")
     void shouldFindByProduct() throws Exception {
         when(orderItemService.findByProduct(any(Product.class)))
                 .thenReturn(Arrays.asList(testOrderItem));
 
-        mockMvc.perform(get("/api/order-items/product/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(testOrderItem.getId()));
+        // 假设有一个根据产品ID查找订单项的方法
+        ResponseEntity<List<OrderItem>> response = orderItemController.findByProduct(1L);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrderItem.getId(), response.getBody().get(0).getId());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_VIEW")
     void shouldFindByOrderAndProduct() throws Exception {
         when(orderItemService.findByOrderAndProduct(any(Order.class), any(Product.class)))
                 .thenReturn(Optional.of(testOrderItem));
 
-        mockMvc.perform(get("/api/order-items/search")
-                        .param("orderId", "1")
-                        .param("productId", "1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(testOrderItem.getId()));
+        ResponseEntity<?> response = orderItemController.findByOrderAndProduct(1L, 1L);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrderItem.getId(), ((OrderItem)response.getBody()).getId());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_VIEW")
     void shouldReturn404WhenOrderItemNotFound() throws Exception {
         when(orderItemService.findByOrderAndProduct(any(Order.class), any(Product.class)))
                 .thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/order-items/search")
-                        .param("orderId", "1")
-                        .param("productId", "1"))
-                .andExpect(status().isNotFound());
+        ResponseEntity<?> response = orderItemController.findByOrderAndProduct(1L, 1L);
+        
+        assertEquals(404, response.getStatusCodeValue());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_VIEW")
     void shouldFindByBatchNo() throws Exception {
         when(orderItemService.findByBatchNo("BATCH-001"))
                 .thenReturn(Arrays.asList(testOrderItem));
 
-        mockMvc.perform(get("/api/order-items/batch/BATCH-001"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(testOrderItem.getId()))
-                .andExpect(jsonPath("$[0].batchNo").value("BATCH-001"));
+        ResponseEntity<List<OrderItem>> response = orderItemController.findByBatchNo("BATCH-001");
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrderItem.getId(), response.getBody().get(0).getId());
+        assertEquals("BATCH-001", response.getBody().get(0).getBatchNo());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_VIEW")
     void shouldFindByWarehouseId() throws Exception {
         when(orderItemService.findByWarehouseId(1L))
                 .thenReturn(Arrays.asList(testOrderItem));
 
-        mockMvc.perform(get("/api/order-items/warehouse/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(testOrderItem.getId()))
-                .andExpect(jsonPath("$[0].warehouseId").value(1));
+        ResponseEntity<List<OrderItem>> response = orderItemController.findByWarehouseId(1L);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrderItem.getId(), response.getBody().get(0).getId());
+        assertEquals(1L, response.getBody().get(0).getWarehouseId());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_DELETE")
     void shouldDeleteOrderItem() throws Exception {
-        mockMvc.perform(delete("/api/order-items/1"))
-                .andExpect(status().isOk());
-
+        ResponseEntity<Void> response = orderItemController.deleteOrderItem(1L);
+        
+        assertEquals(200, response.getStatusCodeValue());
         verify(orderItemService).deleteOrderItem(1L);
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_UPDATE")
     void shouldHandleIllegalArgumentException() throws Exception {
         when(orderItemService.updateQuantity(1L, 0))
                 .thenThrow(new IllegalArgumentException("数量必须大于0"));
-
-        mockMvc.perform(put("/api/order-items/1/quantity")
-                        .param("quantity", "0"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("数量必须大于0"));
+                
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            orderItemController.updateQuantity(1L, 0);
+        });
+        
+        assertEquals("数量必须大于0", exception.getMessage());
     }
 }

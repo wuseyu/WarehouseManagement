@@ -5,6 +5,7 @@ import com.example.warehousemanagement.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +20,7 @@ public class UserController {
 
     // 创建用户
     @PostMapping
+    @PreAuthorize("@customSecurityExpression.hasPermission('USER_CREATE')")
     public ResponseEntity<User> createUser(@RequestBody User user) {
         User savedUser = userService.saveUser(user);
         return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
@@ -26,17 +28,17 @@ public class UserController {
 
     // 根据用户名查找用户
     @GetMapping("/{username}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('USER_VIEW')")
     public ResponseEntity<User> findByUsername(@PathVariable String username) {
-        User user = userService.findByUsername(username);
-        if (user != null) {
-            return new ResponseEntity<>(user, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+        Optional<User> userOptional = userService.findByUsername(username);
+        return userOptional
+                .map(user -> new ResponseEntity<>(user, HttpStatus.OK))
+                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
     // 根据角色名查找用户列表
     @GetMapping("/role/{roleName}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('USER_VIEW')")
     public ResponseEntity<List<User>> findUsersByRoleName(@PathVariable String roleName) {
         List<User> users = userService.findUsersByRoleName(roleName);
         return new ResponseEntity<>(users, HttpStatus.OK);
@@ -44,6 +46,7 @@ public class UserController {
 
     // 根据 ID 查找用户
     @GetMapping("/id/{id}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('USER_VIEW')")
     public ResponseEntity<Optional<User>> findById(@PathVariable Long id) {
         Optional<User> user = userService.findById(id);
         if (user.isPresent()) {
@@ -55,6 +58,7 @@ public class UserController {
 
     // 删除用户
     @DeleteMapping("/{id}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('USER_DELETE')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
@@ -62,6 +66,7 @@ public class UserController {
 
     // 获取所有用户
     @GetMapping
+    @PreAuthorize("@customSecurityExpression.hasPermission('USER_VIEW')")
     public ResponseEntity<List<User>> findAllUsers() {
         List<User> users = userService.findAllUsers();
         return new ResponseEntity<>(users, HttpStatus.OK);

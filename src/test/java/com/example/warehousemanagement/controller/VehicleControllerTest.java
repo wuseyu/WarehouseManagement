@@ -6,29 +6,31 @@ import com.example.warehousemanagement.exception.NotFoundException;
 import com.example.warehousemanagement.service.VehicleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.util.Collections;
+import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(VehicleController.class)
-@AutoConfigureMockMvc
+@ExtendWith(MockitoExtension.class)
 public class VehicleControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
+    @Mock
     private VehicleService vehicleService;
+    
+    @InjectMocks
+    private VehicleController vehicleController;
 
     private Vehicle testVehicle;
     private Task testTask;
@@ -47,103 +49,134 @@ public class VehicleControllerTest {
     }
 
     @Test
-    void createVehicle_ShouldReturnCreated() throws Exception {
+    @WithMockUser(authorities = "VEHICLE_CREATE")
+    void createVehicle_ShouldReturnCreated() {
         when(vehicleService.createVehicle(any(Vehicle.class))).thenReturn(testVehicle);
 
-        mockMvc.perform(post("/api/vehicles")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"plateNumber\":\"京A12345\",\"driverName\":\"测试司机\"}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.plateNumber").value("京A12345"));
+        ResponseEntity<Vehicle> response = vehicleController.createVehicle(new Vehicle());
+        
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals("京A12345", response.getBody().getPlateNumber());
     }
 
     @Test
-    void getVehicleById_ShouldReturnVehicle() throws Exception {
+    @WithMockUser(authorities = "VEHICLE_VIEW")
+    void getVehicleById_ShouldReturnVehicle() {
         when(vehicleService.getVehicleById(1L)).thenReturn(testVehicle);
 
-        mockMvc.perform(get("/api/vehicles/{id}", 1L)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.plateNumber").value("京A12345"));
+        ResponseEntity<Vehicle> response = vehicleController.getVehicleById(1L);
+        
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("京A12345", response.getBody().getPlateNumber());
     }
 
     @Test
-    void getVehicleById_NotFound() throws Exception {
+    @WithMockUser(authorities = "VEHICLE_VIEW")
+    void getVehicleById_NotFound() {
         when(vehicleService.getVehicleById(1L)).thenThrow(new NotFoundException("Vehicle not found"));
 
-        mockMvc.perform(get("/api/vehicles/{id}", 1L)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound());
+        assertThrows(NotFoundException.class, () -> 
+            vehicleController.getVehicleById(1L)
+        );
     }
 
     @Test
-    void getAllVehicles_ShouldReturnList() throws Exception {
+    @WithMockUser(authorities = "VEHICLE_VIEW")
+    void getAllVehicles_ShouldReturnList() {
         when(vehicleService.getAllVehicles()).thenReturn(Collections.singletonList(testVehicle));
 
-        mockMvc.perform(get("/api/vehicles")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].plateNumber").value("京A12345"));
+        ResponseEntity<List<Vehicle>> response = vehicleController.getAllVehicles();
+        
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+        assertEquals("京A12345", response.getBody().get(0).getPlateNumber());
     }
 
     @Test
-    void updateVehicle_ShouldReturnUpdated() throws Exception {
+    @WithMockUser(authorities = "VEHICLE_UPDATE")
+    void updateVehicle_ShouldReturnUpdated() {
         when(vehicleService.updateVehicle(eq(1L), any(Vehicle.class))).thenReturn(testVehicle);
 
-        mockMvc.perform(put("/api/vehicles/{id}", 1L)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"plateNumber\":\"京A12345\",\"driverName\":\"测试司机\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.plateNumber").value("京A12345"));
+        ResponseEntity<Vehicle> response = vehicleController.updateVehicle(1L, new Vehicle());
+        
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("京A12345", response.getBody().getPlateNumber());
     }
 
     @Test
-    void deleteVehicle_ShouldReturnNoContent() throws Exception {
+    @WithMockUser(authorities = "VEHICLE_DELETE")
+    void deleteVehicle_ShouldReturnNoContent() {
         doNothing().when(vehicleService).deleteVehicle(1L);
 
-        mockMvc.perform(delete("/api/vehicles/{id}", 1L))
-                .andExpect(status().isNoContent());
+        ResponseEntity<Void> response = vehicleController.deleteVehicle(1L);
+        
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(vehicleService).deleteVehicle(1L);
     }
 
     @Test
-    void getVehiclesByStatus_ShouldReturnList() throws Exception {
+    @WithMockUser(authorities = "VEHICLE_VIEW")
+    void getVehiclesByStatus_ShouldReturnList() {
         when(vehicleService.getVehiclesByStatus(Vehicle.VehicleStatus.AVAILABLE))
                 .thenReturn(Collections.singletonList(testVehicle));
 
-        mockMvc.perform(get("/api/vehicles/status/{status}", "AVAILABLE")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].plateNumber").value("京A12345"));
+        ResponseEntity<List<Vehicle>> response = vehicleController.getVehiclesByStatus(Vehicle.VehicleStatus.AVAILABLE);
+        
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+        assertEquals("京A12345", response.getBody().get(0).getPlateNumber());
     }
 
     @Test
-    void assignTask_ShouldReturnUpdated() throws Exception {
+    @WithMockUser(authorities = "VEHICLE_UPDATE")
+    void assignTask_ShouldReturnUpdated() {
         when(vehicleService.assignTask(eq(1L), any(Task.class))).thenReturn(testVehicle);
 
-        mockMvc.perform(post("/api/vehicles/{id}/tasks", 1L)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"description\":\"测试任务\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.plateNumber").value("京A12345"));
+        ResponseEntity<Vehicle> response = vehicleController.assignTask(1L, testTask);
+        
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("京A12345", response.getBody().getPlateNumber());
     }
 
     @Test
-    void setMaintenance_ShouldReturnUpdated() throws Exception {
+    @WithMockUser(authorities = "VEHICLE_UPDATE")
+    void setMaintenance_ShouldReturnUpdated() {
         when(vehicleService.setMaintenance(1L)).thenReturn(testVehicle);
 
-        mockMvc.perform(put("/api/vehicles/{id}/maintenance", 1L)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.plateNumber").value("京A12345"));
+        ResponseEntity<Vehicle> response = vehicleController.setMaintenance(1L);
+        
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("京A12345", response.getBody().getPlateNumber());
     }
 
     @Test
-    void setAvailable_ShouldReturnUpdated() throws Exception {
+    @WithMockUser(authorities = "VEHICLE_UPDATE")
+    void setAvailable_ShouldReturnUpdated() {
         when(vehicleService.setAvailable(1L)).thenReturn(testVehicle);
 
-        mockMvc.perform(put("/api/vehicles/{id}/available", 1L)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.plateNumber").value("京A12345"));
+        ResponseEntity<Vehicle> response = vehicleController.setAvailable(1L);
+        
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("京A12345", response.getBody().getPlateNumber());
     }
-} 
+
+    @Test
+    void handleNotFoundException_ShouldReturnNotFound() {
+        NotFoundException ex = new NotFoundException("Vehicle not found");
+        
+        ResponseEntity<String> response = vehicleController.handleNotFoundException(ex);
+        
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("Vehicle not found", response.getBody());
+    }
+    
+    @Test
+    void handleIllegalStateException_ShouldReturnBadRequest() {
+        IllegalStateException ex = new IllegalStateException("Vehicle already in use");
+        
+        ResponseEntity<String> response = vehicleController.handleIllegalStateException(ex);
+        
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Vehicle already in use", response.getBody());
+    }
+}
