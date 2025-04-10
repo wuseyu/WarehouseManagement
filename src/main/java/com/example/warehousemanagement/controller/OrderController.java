@@ -4,6 +4,7 @@ import com.example.warehousemanagement.entity.Order;
 import com.example.warehousemanagement.entity.OrderItem;
 import com.example.warehousemanagement.service.OrderService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ public class OrderController {
      * 创建订单
      */
     @PostMapping
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_CREATE')")
     public ResponseEntity<Order> createOrder(@RequestBody @Valid Order order) {
         return ResponseEntity.ok(orderService.createOrder(order));
     }
@@ -31,6 +33,7 @@ public class OrderController {
      * 添加订单项
      */
     @PostMapping("/{orderId}/items")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_CREATE')")
     public ResponseEntity<Order> addOrderItem(
             @PathVariable Long orderId,
             @RequestBody @Valid OrderItem orderItem) {
@@ -41,6 +44,7 @@ public class OrderController {
      * 获取订单详情
      */
     @GetMapping("/{orderId}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
     public ResponseEntity<Order> getOrder(@PathVariable Long orderId) {
         return orderService.findByOrderNo(orderId.toString())
                 .map(ResponseEntity::ok)
@@ -51,6 +55,7 @@ public class OrderController {
      * 获取用户的所有订单
      */
     @GetMapping("/user/{userId}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
     public ResponseEntity<List<Order>> getUserOrders(@PathVariable Long userId) {
         // TODO: 需要先获取用户信息
         return ResponseEntity.ok(orderService.findOrdersByUser(null));
@@ -60,6 +65,7 @@ public class OrderController {
      * 获取指定状态的订单
      */
     @GetMapping("/status/{status}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
     public ResponseEntity<List<Order>> getOrdersByStatus(
             @PathVariable Order.OrderStatus status) {
         return ResponseEntity.ok(orderService.findOrdersByStatus(status));
@@ -69,6 +75,7 @@ public class OrderController {
      * 更新订单状态
      */
     @PutMapping("/{orderId}/status")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_UPDATE')")
     public ResponseEntity<Order> updateOrderStatus(
             @PathVariable Long orderId,
             @RequestParam Order.OrderStatus status) {
@@ -79,6 +86,7 @@ public class OrderController {
      * 确认订单
      */
     @PostMapping("/{orderId}/confirm")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_CONFIRM')")
     public ResponseEntity<Order> confirmOrder(@PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.confirmOrder(orderId));
     }
@@ -87,6 +95,7 @@ public class OrderController {
      * 发货
      */
     @PostMapping("/{orderId}/ship")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_SHIP')")
     public ResponseEntity<Order> shipOrder(@PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.shipOrder(orderId));
     }
@@ -95,6 +104,7 @@ public class OrderController {
      * 完成订单
      */
     @PostMapping("/{orderId}/complete")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_COMPLETE')")
     public ResponseEntity<Order> completeOrder(@PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.completeOrder(orderId));
     }
@@ -103,6 +113,7 @@ public class OrderController {
      * 根据订单号查询
      */
     @GetMapping("/search")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
     public ResponseEntity<Order> findByOrderNo(@RequestParam String orderNo) {
         return orderService.findByOrderNo(orderNo)
                 .map(ResponseEntity::ok)

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.example.warehousemanagement.entity.Role.RoleType.SUPER_ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,10 +57,10 @@ public class UserRepositoryTest {
     @Test
     public void testFindByUsername() {
         createUser("findUser", "securePass", "find@example.com", null);
-        User foundUser = userRepository.findByUsername("findUser");
+        Optional<User> foundUserOptional = userRepository.findByUsername("findUser");
 
-        assertThat(foundUser).isNotNull();
-        assertThat(foundUser.getUsername()).isEqualTo("findUser");
+        assertThat(foundUserOptional).isPresent();
+        assertThat(foundUserOptional.get().getUsername()).isEqualTo("findUser");
     }
 
     @Test

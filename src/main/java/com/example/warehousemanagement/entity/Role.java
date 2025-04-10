@@ -30,7 +30,7 @@ public class Role {
     private List<User> users = new ArrayList<>();
 
     @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<RolePermission> rolePermissions = new ArrayList<>();
+    private static List<RolePermission> rolePermissions = new ArrayList<>();
 
     public void addPermission(Permission permission) {
         RolePermission rp = new RolePermission(this, permission);
@@ -51,6 +51,21 @@ public class Role {
         RoleType(String post, String Duty) {
             this.cnName = post;
             this.description = Duty;
+        }
+
+        public boolean hasPermission(String permissionCode) {
+            return rolePermissions.stream()
+                .map(RolePermission::getPermission)
+                .anyMatch(p -> p.getCode().equals(permissionCode));
+        }
+
+        public boolean hasPermission(Permission.ActionType action, Permission.ResourceType resource) {
+            return rolePermissions.stream()
+                .map(RolePermission::getPermission)
+                .anyMatch(p -> 
+                    p.getAction() == action && 
+                    p.getResourceType() == resource
+                );
         }
     }
 }

@@ -66,6 +66,17 @@ class InventoryServiceTest {
     }
 
     @Test
+    void getInventory_Success() {
+        Long inventoryId = 1L;
+        Inventory inventory = mock(Inventory.class);
+        when(inventoryRepository.findById(inventoryId)).thenReturn(Optional.of(inventory));
+        
+        Inventory result = inventoryService.getInventory(inventoryId);
+        
+        assertThat(result).isEqualTo(inventory);
+    }
+
+    @Test
     void bulkUpdateStatus_Success() {
         List<Long> ids = List.of(1L, 2L);
         Inventory.InventoryStatus newStatus = Inventory.InventoryStatus.AVAILABLE;

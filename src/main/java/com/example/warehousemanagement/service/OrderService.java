@@ -5,6 +5,7 @@ import com.example.warehousemanagement.entity.OrderItem;
 import com.example.warehousemanagement.entity.User;
 import com.example.warehousemanagement.repository.OrderRepository;
 import com.example.warehousemanagement.repository.OrderItemRepository;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ public class OrderService {
      * @param order 订单信息
      * @return 创建的订单
      */
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_CREATE')")
     public Order createOrder(Order order) {
         // 设置初始状态
         order.setStatus(Order.OrderStatus.PENDING);
@@ -42,6 +44,7 @@ public class OrderService {
      * @param status 新状态
      * @return 更新后的订单
      */
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_UPDATE')")
     public Order updateOrderStatus(Long orderId, Order.OrderStatus status) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
@@ -59,6 +62,7 @@ public class OrderService {
      * @param orderItem 订单项
      * @return 更新后的订单
      */
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_CREATE')")
     public Order addOrderItem(Long orderId, OrderItem orderItem) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
@@ -81,6 +85,7 @@ public class OrderService {
      * @return 订单列表
      */
     @Transactional(readOnly = true)
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
     public List<Order> findOrdersByUser(User user) {
         return orderRepository.findByUser(user);
     }
@@ -91,6 +96,7 @@ public class OrderService {
      * @return 订单列表
      */
     @Transactional(readOnly = true)
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
     public List<Order> findOrdersByStatus(Order.OrderStatus status) {
         return orderRepository.findByStatus(status);
     }
@@ -101,6 +107,7 @@ public class OrderService {
      * @return 订单信息
      */
     @Transactional(readOnly = true)
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
     public Optional<Order> findByOrderNo(String orderNo) {
         return orderRepository.findByOrderNo(orderNo);
     }
@@ -110,6 +117,7 @@ public class OrderService {
      * @param orderId 订单ID
      * @return 更新后的订单
      */
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_CONFIRM')")
     public Order confirmOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
@@ -122,6 +130,7 @@ public class OrderService {
      * @param orderId 订单ID
      * @return 更新后的订单
      */
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_SHIP')")
     public Order shipOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
@@ -134,6 +143,7 @@ public class OrderService {
      * @param orderId 订单ID
      * @return 更新后的订单
      */
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_COMPLETE')")
     public Order completeOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));

@@ -5,6 +5,7 @@ import com.example.warehousemanagement.entity.OrderItem;
 import com.example.warehousemanagement.entity.Product;
 import com.example.warehousemanagement.service.OrderItemService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -25,6 +26,7 @@ public class OrderItemController {
      * 创建订单项
      */
     @PostMapping
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_CREATE')")
     public ResponseEntity<OrderItem> createOrderItem(@RequestBody @Valid OrderItem orderItem) {
         return ResponseEntity.ok(orderItemService.createOrderItem(orderItem));
     }
@@ -33,6 +35,7 @@ public class OrderItemController {
      * 批量创建订单项
      */
     @PostMapping("/batch")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_CREATE')")
     public ResponseEntity<List<OrderItem>> createOrderItems(@RequestBody @Valid List<OrderItem> orderItems) {
         return ResponseEntity.ok(orderItemService.createOrderItems(orderItems));
     }
@@ -41,6 +44,7 @@ public class OrderItemController {
      * 更新订单项数量
      */
     @PutMapping("/{id}/quantity")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_UPDATE')")
     public ResponseEntity<OrderItem> updateQuantity(
             @PathVariable Long id,
             @RequestParam Integer quantity) {
@@ -51,6 +55,7 @@ public class OrderItemController {
      * 更新订单项单价
      */
     @PutMapping("/{id}/unit-price")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_UPDATE')")
     public ResponseEntity<OrderItem> updateUnitPrice(
             @PathVariable Long id,
             @RequestParam BigDecimal unitPrice) {
@@ -61,6 +66,7 @@ public class OrderItemController {
      * 根据订单查询订单项
      */
     @GetMapping("/order/{orderId}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_VIEW')")
     public ResponseEntity<List<OrderItem>> findByOrder(@PathVariable Long orderId) {
         Order order = new Order();
         order.setId(orderId);
@@ -71,6 +77,7 @@ public class OrderItemController {
      * 根据商品查询订单项
      */
     @GetMapping("/product/{productId}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_VIEW')")
     public ResponseEntity<List<OrderItem>> findByProduct(@PathVariable Long productId) {
         Product product = new Product();
         product.setId(productId);
@@ -81,6 +88,7 @@ public class OrderItemController {
      * 根据订单和商品查询订单项
      */
     @GetMapping("/search")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_VIEW')")
     public ResponseEntity<OrderItem> findByOrderAndProduct(
             @RequestParam Long orderId,
             @RequestParam Long productId) {
@@ -98,6 +106,7 @@ public class OrderItemController {
      * 根据批次号查询订单项
      */
     @GetMapping("/batch/{batchNo}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_VIEW')")
     public ResponseEntity<List<OrderItem>> findByBatchNo(@PathVariable String batchNo) {
         return ResponseEntity.ok(orderItemService.findByBatchNo(batchNo));
     }
@@ -106,6 +115,7 @@ public class OrderItemController {
      * 根据仓库ID查询订单项
      */
     @GetMapping("/warehouse/{warehouseId}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_VIEW')")
     public ResponseEntity<List<OrderItem>> findByWarehouseId(@PathVariable Long warehouseId) {
         return ResponseEntity.ok(orderItemService.findByWarehouseId(warehouseId));
     }
@@ -114,6 +124,7 @@ public class OrderItemController {
      * 删除订单项
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_ITEM_DELETE')")
     public ResponseEntity<Void> deleteOrderItem(@PathVariable Long id) {
         orderItemService.deleteOrderItem(id);
         return ResponseEntity.ok().build();

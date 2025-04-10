@@ -49,11 +49,14 @@ public class Permission {
 
     // 枚举定义（仓储专用）
     public enum ResourceType {
-        WAREHOUSE, INVENTORY, ORDER, VEHICLE, REPORT
+        // 补充完整资源类型
+        WAREHOUSE, INVENTORY, ORDER, PRODUCT, 
+        VEHICLE, TASK, USER, ROLE, REPORT
     }
 
     public enum ActionType {
-        CREATE, UPDATE, DELETE, VIEW, EXPORT, APPROVE // 新增审批操作
+        CREATE, READ, UPDATE, DELETE, 
+        APPROVE, TRANSFER, EXPORT
     }
 
     // 业务方法：校验是否匹配资源

@@ -5,6 +5,7 @@ import com.example.warehousemanagement.entity.Task;
 import com.example.warehousemanagement.exception.NotFoundException;
 import com.example.warehousemanagement.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,12 +19,14 @@ public class VehicleService {
 
     // 创建新车辆
     @Transactional
+    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_CREATE')")
     public Vehicle createVehicle(Vehicle vehicle) {
         return vehicleRepository.save(vehicle);
     }
 
     // 通过 ID 获取车辆
     @Transactional(readOnly = true)
+    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_VIEW')")
     public Vehicle getVehicleById(Long id) {
         return vehicleRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Vehicle not found"));
@@ -31,12 +34,14 @@ public class VehicleService {
 
     // 获取所有车辆
     @Transactional(readOnly = true)
+    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_VIEW')")
     public List<Vehicle> getAllVehicles() {
         return vehicleRepository.findAll();
     }
 
     // 更新车辆信息
     @Transactional
+    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_UPDATE')")
     public Vehicle updateVehicle(Long id, Vehicle vehicleDetails) {
         Vehicle vehicle = getVehicleById(id);
         vehicle.setPlateNumber(vehicleDetails.getPlateNumber());
@@ -50,18 +55,21 @@ public class VehicleService {
 
     // 删除车辆
     @Transactional
+    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_DELETE')")
     public void deleteVehicle(Long id) {
         vehicleRepository.deleteById(id);
     }
 
     // 根据状态查找车辆
     @Transactional(readOnly = true)
+    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_VIEW')")
     public List<Vehicle> getVehiclesByStatus(Vehicle.VehicleStatus status) {
         return vehicleRepository.findByStatus(status);
     }
 
     // 分配任务给车辆
     @Transactional
+    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_UPDATE')")
     public Vehicle assignTask(Long vehicleId, Task task) {
         Vehicle vehicle = getVehicleById(vehicleId);
         vehicle.assignTask(task);
@@ -70,6 +78,7 @@ public class VehicleService {
 
     // 完成车辆任务
     @Transactional
+    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_UPDATE')")
     public Vehicle completeTask(Long vehicleId, Task task) {
         Vehicle vehicle = getVehicleById(vehicleId);
         vehicle.completeTask(task);
@@ -78,6 +87,7 @@ public class VehicleService {
 
     // 将车辆设置为维护状态
     @Transactional
+    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_UPDATE')")
     public Vehicle setMaintenance(Long vehicleId) {
         Vehicle vehicle = getVehicleById(vehicleId);
         if (!vehicle.getAssignedTasks().isEmpty()) {
@@ -89,6 +99,7 @@ public class VehicleService {
 
     // 将车辆设置为可用状态
     @Transactional
+    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_UPDATE')")
     public Vehicle setAvailable(Long vehicleId) {
         Vehicle vehicle = getVehicleById(vehicleId);
         if (vehicle.getStatus() != Vehicle.VehicleStatus.MAINTENANCE) {
@@ -97,4 +108,4 @@ public class VehicleService {
         vehicle.setStatus(Vehicle.VehicleStatus.AVAILABLE);
         return vehicleRepository.save(vehicle);
     }
-} 
+}

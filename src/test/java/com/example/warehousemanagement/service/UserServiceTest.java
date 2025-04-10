@@ -54,13 +54,14 @@ public class UserServiceTest {
         String username = "testUser";
         User user = new User();
         user.setUsername(username);
+        Optional<User> userOptional = Optional.of(user);
 
-        when(userRepository.findByUsername(username)).thenReturn(user);
+        when(userRepository.findByUsername(username)).thenReturn(userOptional);
 
-        User foundUser = userService.findByUsername(username);
+        Optional<User> foundUserOptional = userService.findByUsername(username);
 
-        assertThat(foundUser).isNotNull();
-        assertThat(foundUser.getUsername()).isEqualTo(username);
+        assertThat(foundUserOptional).isPresent();
+        assertThat(foundUserOptional.get().getUsername()).isEqualTo(username);
         verify(userRepository, times(1)).findByUsername(username);
     }
 

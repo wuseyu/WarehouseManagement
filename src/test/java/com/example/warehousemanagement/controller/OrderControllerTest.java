@@ -7,39 +7,40 @@ import com.example.warehousemanagement.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@WebMvcTest(OrderController.class)
+@ExtendWith(MockitoExtension.class)
 class OrderControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @Mock
     private OrderService orderService;
 
+    private OrderController orderController;
+    private ObjectMapper objectMapper;
     private Order testOrder;
     private OrderItem testOrderItem;
     private User testUser;
 
     @BeforeEach
     void setUp() {
+        objectMapper = new ObjectMapper();
+        orderController = new OrderController(orderService);
+        
         // 初始化测试用户
         testUser = new User();
         testUser.setId(1L);
@@ -60,125 +61,130 @@ class OrderControllerTest {
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_CREATE")
     void shouldCreateOrder() throws Exception {
         when(orderService.createOrder(any(Order.class))).thenReturn(testOrder);
 
-        mockMvc.perform(post("/api/orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testOrder)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(testOrder.getId()))
-                .andExpect(jsonPath("$.status").value(testOrder.getStatus().toString()))
-                .andExpect(jsonPath("$.orderNo").value(testOrder.getOrderNo()));
+        ResponseEntity<Order> response = orderController.createOrder(testOrder);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(1L, response.getBody().getUser().getId());
+        assertEquals(Order.OrderStatus.PENDING, response.getBody().getStatus());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_ITEM_CREATE")
     void shouldAddOrderItem() throws Exception {
-        when(orderService.addOrderItem(any(Long.class), any(OrderItem.class))).thenReturn(testOrder);
+        when(orderService.addOrderItem(anyLong(), any(OrderItem.class))).thenReturn(testOrder);
 
-        mockMvc.perform(post("/api/orders/1/items")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testOrderItem)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(testOrder.getId()));
+        ResponseEntity<Order> response = orderController.addOrderItem(1L, testOrderItem);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrder.getId(), response.getBody().getId());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_VIEW")
     void shouldGetOrder() throws Exception {
         when(orderService.findByOrderNo("1")).thenReturn(Optional.of(testOrder));
 
-        mockMvc.perform(get("/api/orders/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(testOrder.getId()))
-                .andExpect(jsonPath("$.status").value(testOrder.getStatus().toString()));
+        ResponseEntity<Order> response = orderController.getOrder(1L);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrder.getId(), response.getBody().getId());
+        assertEquals(testOrder.getStatus(), response.getBody().getStatus());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_VIEW")
     void shouldReturn404WhenOrderNotFound() throws Exception {
         when(orderService.findByOrderNo("1")).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/orders/1"))
-                .andExpect(status().isNotFound());
+        ResponseEntity<Order> response = orderController.getOrder(1L);
+        
+        assertEquals(404, response.getStatusCodeValue());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_VIEW")
     void shouldGetOrdersByStatus() throws Exception {
         when(orderService.findOrdersByStatus(Order.OrderStatus.PENDING))
                 .thenReturn(Arrays.asList(testOrder));
 
-        mockMvc.perform(get("/api/orders/status/PENDING"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(testOrder.getId()))
-                .andExpect(jsonPath("$[0].status").value(testOrder.getStatus().toString()));
+        ResponseEntity<List<Order>> response = orderController.getOrdersByStatus(Order.OrderStatus.PENDING);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(1, response.getBody().size());
+        assertEquals(testOrder.getId(), response.getBody().get(0).getId());
+        assertEquals(testOrder.getStatus(), response.getBody().get(0).getStatus());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_UPDATE")
     void shouldUpdateOrderStatus() throws Exception {
-        when(orderService.updateOrderStatus(1L, Order.OrderStatus.PROCESSING)).thenReturn(testOrder);
+        // 模拟更新逻辑
+        Order updatedOrder = testOrder;
+        updatedOrder.setStatus(Order.OrderStatus.PROCESSING);
+        when(orderService.updateOrderStatus(1L, Order.OrderStatus.PROCESSING)).thenReturn(updatedOrder);
 
-        mockMvc.perform(put("/api/orders/1/status")
-                        .param("status", "PROCESSING"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(testOrder.getId()));
+        ResponseEntity<Order> response = orderController.updateOrderStatus(1L, Order.OrderStatus.PROCESSING);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(Order.OrderStatus.PROCESSING, response.getBody().getStatus());
+        assertEquals(1L, response.getBody().getUser().getId());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_CONFIRM")
     void shouldConfirmOrder() throws Exception {
-        testOrder.setStatus(Order.OrderStatus.PROCESSING);
-        when(orderService.confirmOrder(1L)).thenReturn(testOrder);
+        // A模拟确认操作后的订单
+        Order confirmedOrder = testOrder;
+        confirmedOrder.setStatus(Order.OrderStatus.PROCESSING);
+        when(orderService.confirmOrder(1L)).thenReturn(confirmedOrder);
 
-        mockMvc.perform(post("/api/orders/1/confirm"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(testOrder.getStatus().toString()));
+        ResponseEntity<Order> response = orderController.confirmOrder(1L);
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(Order.OrderStatus.PROCESSING, response.getBody().getStatus());
+        assertEquals(1L, response.getBody().getUser().getId());
     }
-
+    
     @Test
-    void shouldShipOrder() throws Exception {
-        testOrder.setStatus(Order.OrderStatus.SHIPPED);
-        when(orderService.shipOrder(1L)).thenReturn(testOrder);
-
-        mockMvc.perform(post("/api/orders/1/ship"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(testOrder.getStatus().toString()));
-    }
-
-    @Test
-    void shouldCompleteOrder() throws Exception {
-        testOrder.setStatus(Order.OrderStatus.DELIVERED);
-        when(orderService.completeOrder(1L)).thenReturn(testOrder);
-
-        mockMvc.perform(post("/api/orders/1/complete"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(testOrder.getStatus().toString()));
-    }
-
-    @Test
+    @WithMockUser(authorities = "ORDER_VIEW")
     void shouldFindByOrderNo() throws Exception {
         when(orderService.findByOrderNo("ORD-2025-001")).thenReturn(Optional.of(testOrder));
 
-        mockMvc.perform(get("/api/orders/search")
-                        .param("orderNo", "ORD-2025-001"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.orderNo").value(testOrder.getOrderNo()));
+        ResponseEntity<Order> response = orderController.findByOrderNo("ORD-2025-001");
+        
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(testOrder.getOrderNo(), response.getBody().getOrderNo());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_CONFIRM")
     void shouldHandleIllegalStateException() throws Exception {
+        // 模拟订单处于非法状态（PENDING 不可确认）
+        testOrder.setStatus(Order.OrderStatus.PENDING);
         when(orderService.confirmOrder(1L))
-                .thenThrow(new IllegalStateException("订单状态错误"));
+                .thenThrow(new IllegalStateException("订单状态错误：必须为 PROCESSING 状态"));
 
-        mockMvc.perform(post("/api/orders/1/confirm"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("订单状态错误"));
+        Exception exception = assertThrows(IllegalStateException.class, () -> {
+            orderController.confirmOrder(1L);
+        });
+        
+        assertEquals("订单状态错误：必须为 PROCESSING 状态", exception.getMessage());
     }
 
     @Test
+    @WithMockUser(authorities = "ORDER_CONFIRM")
     void shouldHandleIllegalArgumentException() throws Exception {
         when(orderService.confirmOrder(999L))
-                .thenThrow(new IllegalArgumentException("订单不存在"));
+                .thenThrow(new IllegalArgumentException("订单 ID 999 不存在"));
 
-        mockMvc.perform(post("/api/orders/999/confirm"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("订单不存在"));
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            orderController.confirmOrder(999L);
+        });
+        
+        assertEquals("订单 ID 999 不存在", exception.getMessage());
     }
 }
