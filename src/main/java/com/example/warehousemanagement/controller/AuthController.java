@@ -92,7 +92,7 @@ public class AuthController {
         user.setUpdatedAt(now);
 
         // 默认分配STORE角色
-        Optional<Role> storeRole = roleRepository.findByType(Role.RoleType.STORE);
+        Optional<Role> storeRole = roleRepository.findByName("ROLE_STORE");
         if (storeRole.isPresent()) {
             user.getRoles().add(storeRole.get());
         } else {

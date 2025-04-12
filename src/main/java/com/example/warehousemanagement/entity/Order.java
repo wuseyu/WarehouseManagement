@@ -1,5 +1,6 @@
 package com.example.warehousemanagement.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.Setter;
 import jakarta.persistence.*;
@@ -30,6 +31,7 @@ public class Order {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"orders", "hibernateLazyInitializer", "roles"})
     private User user;
 
     @Column(name = "delivery_address", length = 255, nullable = false)
@@ -50,8 +52,8 @@ public class Order {
     private Timestamp updatedAt;
 
     // 关联关系
-    @OneToMany(cascade = CascadeType.ALL)
-    @JoinColumn(name = "order_id") // 新增 JoinColumn 来指定外键列
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("order")
     private List<OrderItem> orderItems = new ArrayList<>();
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)

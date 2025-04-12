@@ -1,10 +1,9 @@
 package com.example.warehousemanagement.controller;
 
 import com.example.warehousemanagement.entity.Vehicle;
-import com.example.warehousemanagement.entity.Task;
 import com.example.warehousemanagement.exception.NotFoundException;
 import com.example.warehousemanagement.service.VehicleService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,70 +13,93 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/vehicles")
-@RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")  // 超级管理员和管理员都可以访问车辆相关接口
 public class VehicleController {
 
-    private final VehicleService vehicleService;
+    @Autowired
+    private VehicleService vehicleService;
 
-    // 创建车辆
-    @PostMapping
-    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_CREATE')")
-    public ResponseEntity<Vehicle> createVehicle(@RequestBody Vehicle vehicle) {
-        Vehicle savedVehicle = vehicleService.createVehicle(vehicle);
-        return new ResponseEntity<>(savedVehicle, HttpStatus.CREATED);
-    }
-
-    // 根据 ID 查找车辆
-    @GetMapping("/{id}")
-    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_VIEW')")
-    public ResponseEntity<Vehicle> getVehicleById(@PathVariable Long id) {
-        Vehicle vehicle = vehicleService.getVehicleById(id);
-        return new ResponseEntity<>(vehicle, HttpStatus.OK);
-    }
-
-    // 获取所有车辆
+    /**
+     * 获取所有车辆
+     */
     @GetMapping
-    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_VIEW')")
     public ResponseEntity<List<Vehicle>> getAllVehicles() {
-        List<Vehicle> vehicles = vehicleService.getAllVehicles();
-        return new ResponseEntity<>(vehicles, HttpStatus.OK);
+        return ResponseEntity.ok(vehicleService.findAll());
     }
 
-    // 更新车辆信息
+    /**
+     * 根据ID获取车辆
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<Vehicle> getVehicleById(@PathVariable Long id) {
+        return vehicleService.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * 创建新车辆
+     */
+    @PostMapping
+    public ResponseEntity<Vehicle> createVehicle(@RequestBody Vehicle vehicle) {
+        return ResponseEntity.ok(vehicleService.save(vehicle));
+    }
+
+    /**
+     * 更新车辆信息
+     */
     @PutMapping("/{id}")
-    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_UPDATE')")
-    public ResponseEntity<Vehicle> updateVehicle(@PathVariable Long id, @RequestBody Vehicle vehicleDetails) {
-        Vehicle updatedVehicle = vehicleService.updateVehicle(id, vehicleDetails);
-        return new ResponseEntity<>(updatedVehicle, HttpStatus.OK);
+    public ResponseEntity<Vehicle> updateVehicle(@PathVariable Long id, @RequestBody Vehicle vehicle) {
+        return vehicleService.findById(id)
+                .map(existingVehicle -> {
+                    return ResponseEntity.ok(vehicleService.updateVehicle(id, vehicle));
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    // 删除车辆
+    /**
+     * 删除车辆
+     */
     @DeleteMapping("/{id}")
-    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_DELETE')")
     public ResponseEntity<Void> deleteVehicle(@PathVariable Long id) {
-        vehicleService.deleteVehicle(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        return vehicleService.findById(id)
+                .map(vehicle -> {
+                    vehicleService.deleteById(id);
+                    return ResponseEntity.ok().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    // 根据状态查找车辆
+    /**
+     * 根据状态查询车辆
+     */
     @GetMapping("/status/{status}")
-    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_VIEW')")
-    public ResponseEntity<List<Vehicle>> getVehiclesByStatus(@PathVariable Vehicle.VehicleStatus status) {
-        List<Vehicle> vehicles = vehicleService.getVehiclesByStatus(status);
-        return new ResponseEntity<>(vehicles, HttpStatus.OK);
+    public ResponseEntity<List<Vehicle>> getVehiclesByStatus(@PathVariable String status) {
+        try {
+            System.out.println("收到状态筛选请求: " + status);
+            Vehicle.VehicleStatus vehicleStatus = Vehicle.VehicleStatus.valueOf(status);
+            List<Vehicle> vehicles = vehicleService.findByStatus(vehicleStatus);
+            System.out.println("找到符合状态 " + status + " 的车辆数量: " + vehicles.size());
+            return ResponseEntity.ok(vehicles);
+        } catch (IllegalArgumentException e) {
+            System.err.println("无效的车辆状态: " + status);
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            System.err.println("处理状态筛选请求时出错: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
-    // 分配任务给车辆
-    @PostMapping("/{id}/tasks")
-    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_UPDATE')")
-    public ResponseEntity<Vehicle> assignTask(@PathVariable Long id, @RequestBody Task task) {
-        Vehicle updatedVehicle = vehicleService.assignTask(id, task);
-        return new ResponseEntity<>(updatedVehicle, HttpStatus.OK);
+    /**
+     * 根据车牌号查询车辆
+     */
+    @GetMapping("/plateNumber/{plateNumber}")
+    public ResponseEntity<List<Vehicle>> getVehiclesByPlateNumber(@PathVariable String plateNumber) {
+        return ResponseEntity.ok(vehicleService.findByPlateNumber(plateNumber));
     }
 
     // 设置车辆为维护状态
     @PutMapping("/{id}/maintenance")
-    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_UPDATE')")
     public ResponseEntity<Vehicle> setMaintenance(@PathVariable Long id) {
         Vehicle updatedVehicle = vehicleService.setMaintenance(id);
         return new ResponseEntity<>(updatedVehicle, HttpStatus.OK);
@@ -85,7 +107,6 @@ public class VehicleController {
 
     // 设置车辆为可用状态
     @PutMapping("/{id}/available")
-    @PreAuthorize("@customSecurityExpression.hasPermission('VEHICLE_UPDATE')")
     public ResponseEntity<Vehicle> setAvailable(@PathVariable Long id) {
         Vehicle updatedVehicle = vehicleService.setAvailable(id);
         return new ResponseEntity<>(updatedVehicle, HttpStatus.OK);

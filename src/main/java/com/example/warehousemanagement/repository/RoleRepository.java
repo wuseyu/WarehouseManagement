@@ -11,7 +11,10 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
 
     // 根据角色名称查找角色
     Optional<Role> findByName(String name);
-    
-    // 根据角色类型查找角色
-    Optional<Role> findByType(Role.RoleType type);
+
+    // 检查角色名称是否存在
+    boolean existsByName(String name);
+
+    // 检查角色类型是否存在
+    boolean existsByType(String type);
 }

@@ -1,5 +1,6 @@
 package com.example.warehousemanagement.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.Setter;
 import jakarta.persistence.*;
@@ -20,11 +21,13 @@ public class OrderItem {
     // 关联订单（多对一）
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
+    @JsonIgnoreProperties({"orderItems", "hibernateLazyInitializer"})
     private Order order;
 
     // 关联商品（多对一）
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
+    @JsonIgnoreProperties({"orderItems", "inventories", "hibernateLazyInitializer"})
     private Product product;
 
     // 订单项核心字段

@@ -10,7 +10,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import java.util.List;
 import java.util.Optional;
 
-import static com.example.warehousemanagement.entity.Role.RoleType.SUPER_ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
@@ -33,10 +32,10 @@ public class UserRepositoryTest {
     @Autowired
     private RoleRepository roleRepository;
 
-    private Role createRole(Role.RoleType roleType, String name, String responsibility) {
+    private Role createRole(String name, String responsibility) {
         Role role = new Role();
-        role.setType(roleType);
         role.setName(name);
+        role.setType(name.replace("ROLE_", ""));
         role.setResponsibility(responsibility);
         return roleRepository.save(role); // 先保存 Role
     }
@@ -44,7 +43,7 @@ public class UserRepositoryTest {
 
     @Test
     public void testSaveAndFindUser() {
-        Role role = createRole(SUPER_ADMIN,"超级管理员","系统最高权限");
+        Role role = createRole("ROLE_SUPER_ADMIN", "系统最高权限");
         User savedUser = createUser("testUser", "password123", "test@example.com", role);
 
         User foundUser = userRepository.findById(savedUser.getId()).orElse(null);
@@ -88,16 +87,16 @@ public class UserRepositoryTest {
  */
 //    @Test
 //    public void testFindUsersByRoleName() {
-//        Role adminRole = createRole(SUPER_ADMIN,"超级管理员","系统最高权限");
+//        Role adminRole = createRole("ROLE_SUPER_ADMIN", "系统最高权限");
 //        User user1 = createUser("adminUser1", "adminPass1", "admin1@example.com", adminRole);
 //        User user2 = createUser("adminUser2", "adminPass2", "admin2@example.com", adminRole);
 //        User user3 = createUser("regularUser", "userPass", "user@example.com", null);
 //
-//        List<User> adminUsers = userRepository.findUsersByRoleName("城市运营商");
+//        List<User> adminUsers = userRepository.findUsersByRoleName("ROLE_SUPER_ADMIN");
 //
 //        assertThat(adminUsers).isNotEmpty();
 //        assertThat(adminUsers).contains(user1, user2);
 //        assertThat(adminUsers).doesNotContain(user3);
 //    }
 
-}
+} 

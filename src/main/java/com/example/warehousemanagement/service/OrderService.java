@@ -152,6 +152,16 @@ public class OrderService {
     }
 
     /**
+     * 获取所有订单
+     * @return 所有订单列表
+     */
+    @Transactional(readOnly = true)
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
+    public List<Order> getAllOrders() {
+        return orderRepository.findAll();
+    }
+
+    /**
      * 验证订单状态流转的合法性
      */
     private void validateStatusTransition(Order.OrderStatus currentStatus, Order.OrderStatus newStatus) {

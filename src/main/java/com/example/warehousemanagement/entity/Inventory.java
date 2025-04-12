@@ -1,5 +1,6 @@
 package com.example.warehousemanagement.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.Setter;
 import jakarta.persistence.*;
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @Table(
+        name = "inventory",
         indexes = {
                 @Index(name = "idx_inventory_warehouse_product", columnList = "warehouse_id, product_id"),
                 @Index(name = "idx_inventory_expiration", columnList = "expiration_date")
@@ -22,12 +24,14 @@ public class Inventory {
     private Long id;
 
     // 保留原有仓库和产品关联（可空性优化）
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "warehouse_id", nullable = false)
+    @JsonIgnoreProperties({"inventories", "hibernateLazyInitializer", "handler"})
     private Warehouse warehouse;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
+    @JsonIgnoreProperties({"inventories", "orderItems", "hibernateLazyInitializer", "handler"})
     private Product product;
 
     // 保留数量（销售单位，必填）
@@ -58,15 +62,6 @@ public class Inventory {
     @Version
     private Integer version;
 
-    // 添加全参构造函数（测试需要）
-    public Inventory(Warehouse warehouse, Product product, int quantity) {
-        this.warehouse = warehouse;
-        this.product = product;
-        this.quantity = quantity;
-        this.createdAt = new Timestamp(System.currentTimeMillis()); // 添加时间初始化
-        this.version = 0;
-    }
-
     // 🌟 仓储业务方法（封装核心逻辑）
     public boolean deductQuantity(Integer amount) {
         if (status != InventoryStatus.AVAILABLE) return false; // 非可用状态不可扣减
@@ -96,12 +91,14 @@ public class Inventory {
     // 🌟 保留原有无参构造（兼容Hibernate）
     public Inventory() {}
 
-    // 🌟 新增常用构造（兼容测试）
+    // 🌟 构造函数（兼容测试）
     public Inventory(Warehouse warehouse, Product product, Integer quantity) {
         this.warehouse = warehouse;
         this.product = product;
         this.quantity = quantity;
         this.createdAt = new Timestamp(System.currentTimeMillis());
+        this.updatedAt = new Timestamp(System.currentTimeMillis());
+        this.version = 0;
     }
 
     // 枚举定义（建议单独文件，此处内联）
@@ -110,5 +107,17 @@ public class Inventory {
         LOCKED,     // 已锁定（订单占用）
         FROZEN,     // 冻结（ Recall/质检）
         SCRAPPED    // 报废
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = new Timestamp(System.currentTimeMillis());
+    }
+    
+    @PrePersist
+    protected void onCreate() {
+        Timestamp now = new Timestamp(System.currentTimeMillis());
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 }

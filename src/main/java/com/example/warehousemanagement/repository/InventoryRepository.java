@@ -8,9 +8,11 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+@Repository
 public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     // 根据仓库和产品查询库存（兼容批量查询）

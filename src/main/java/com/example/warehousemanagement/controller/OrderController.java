@@ -121,6 +121,15 @@ public class OrderController {
     }
 
     /**
+     * 获取所有订单
+     */
+    @GetMapping
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
+    public ResponseEntity<List<Order>> getAllOrders() {
+        return ResponseEntity.ok(orderService.getAllOrders());
+    }
+
+    /**
      * 处理订单相关的异常
      */
     @ExceptionHandler(IllegalStateException.class)

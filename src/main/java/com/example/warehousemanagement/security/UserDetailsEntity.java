@@ -17,9 +17,9 @@ public class UserDetailsEntity implements UserDetails {
 
     public UserDetailsEntity(User user) {
         this.user = user;
-        // 转换角色为Spring Security授权对象
+        // 转换角色为Spring Security授权对象，使用角色的type字段作为权限标识符
         this.authorities = user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getType().name()))
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getType()))
                 .collect(Collectors.toList());
     }
 

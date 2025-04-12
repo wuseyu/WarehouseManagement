@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <footer th:fragment="footer" class="footer mt-auto py-3 bg-light">
+        <div class="container">
+            <span class="text-muted">仓库管理系统 &copy; 2025</span>
+        </div>
+        
+        <!-- 添加认证状态信息，便于调试 -->
+        <div class="container mt-2" th:if="${#authorization?.getAuthentication() != null}">
+            <small class="text-muted">
+                当前用户: <span th:text="${#authorization.getName()}"></span> |
+                角色: <span th:text="${#authorization.getAuthentication().getAuthorities()}"></span>
+            </small>
+        </div>
+    </footer>
+</body>
+</html> 
