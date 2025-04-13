@@ -34,7 +34,7 @@ public class OrderItem {
     private Integer quantity; // 销售单位数量
 
     @Column(precision = 10, scale = 2, nullable = false)
-    private BigDecimal unitPrice; // 商品单价（销售单价）
+    private BigDecimal unitPrice = BigDecimal.ZERO; // 商品单价（销售单价）
 
     // 仓储扩展字段
     @Column(name = "batch_no", length = 20)
@@ -49,7 +49,18 @@ public class OrderItem {
     public OrderItem(Product product, Integer quantity) {
         this.product = product;
         this.quantity = quantity;
-        this.unitPrice = product.getSellingPrice(); // 自动获取商品单价
+        if (product != null && product.getSellingPrice() != null) {
+            this.unitPrice = product.getSellingPrice().multiply(new BigDecimal("1.5")).setScale(2, BigDecimal.ROUND_HALF_UP);
+        } else {
+            this.unitPrice = BigDecimal.valueOf(100.00); // 默认价格
+        }
+    }
+
+    public void setProduct(Product product) {
+        this.product = product;
+        if (product != null && product.getSellingPrice() != null) {
+            this.unitPrice = product.getSellingPrice().multiply(new BigDecimal("1.5")).setScale(2, BigDecimal.ROUND_HALF_UP);
+        }
     }
 
     // 业务方法：计算订单项金额

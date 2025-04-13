@@ -19,6 +19,7 @@ import java.sql.SQLException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -146,7 +147,7 @@ public class MockDataInitializer implements CommandLineRunner {
         List<User> operatorUsers = findUsersByRole("ROLE_CITY_OPERATOR"); // 获取城市运营商角色用户
         
         // 3. 初始化车辆数据
-        initVehicles(20); // 创建20辆车
+        List<Vehicle> vehicles = initVehicles(20); // 创建20辆车
         
         // 如果没有相应角色的用户，创建一些
         if (storeUsers.isEmpty()) {
@@ -160,19 +161,18 @@ public class MockDataInitializer implements CommandLineRunner {
         // 4. 创建库存数据（每个仓库x每个产品，约50条）
         initInventories(products, warehouses);
         
-        // 5. 创建订单数据部分 - 暂时注释掉
-        /*
+        // 5. 创建订单数据部分
         List<User> orderUsers = new ArrayList<>(storeUsers);
         orderUsers.addAll(operatorUsers);
         
         // 无论是否有现有数据，都创建新的测试订单数据
         logger.info("【模拟数据】开始生成订单测试数据...");
-        initOrders(products, orderUsers, 50);
+        initOrders(products, orderUsers, vehicles, 50);
         
         // 6. 输出总结信息
         long totalOrders = orderRepository.count();
         logger.info("【模拟数据】模拟数据初始化完成，当前系统中共有{}个订单", totalOrders);
-        */
+        
         // 输出创建成功的基础数据信息
         logger.info("【模拟数据】模拟数据初始化完成，创建了{}个产品、{}个仓库", 
                 productRepository.count(), warehouseRepository.count());
@@ -480,9 +480,64 @@ public class MockDataInitializer implements CommandLineRunner {
     }
     
     /**
+     * 初始化车辆数据
+     */
+    private List<Vehicle> initVehicles(int count) {
+        logger.info("【模拟数据】开始创建{}辆车辆...", count);
+        
+        // 检查已有车辆数量
+        long existingCount = vehicleRepository.count();
+        
+        if (existingCount >= count) {
+            logger.info("【模拟数据】已有{}辆车辆，无需创建", existingCount);
+            return Collections.emptyList();
+        }
+        
+        List<Vehicle> vehicles = new ArrayList<>();
+        
+        for (int i = 0; i < count - existingCount; i++) {
+            Vehicle vehicle = new Vehicle();
+            
+            // 司机姓名使用拼音
+            String driverName = DRIVER_NAMES[ThreadLocalRandom.current().nextInt(DRIVER_NAMES.length)];
+            vehicle.setDriverName(driverName);
+            
+            // 随机容量 (3-30)
+            vehicle.setCapacity(ThreadLocalRandom.current().nextInt(3, 31));
+            
+            // 随机状态，按概率分配: 60% 可用, 30% 使用中, 10% 维修中
+            double statusRandom = ThreadLocalRandom.current().nextDouble();
+            if (statusRandom < 0.6) {
+                vehicle.setStatus(Vehicle.VehicleStatus.AVAILABLE);
+            } else if (statusRandom < 0.9) {
+                vehicle.setStatus(Vehicle.VehicleStatus.IN_USE);
+            } else {
+                vehicle.setStatus(Vehicle.VehicleStatus.MAINTENANCE);
+            }
+            
+            // 当前位置
+            vehicle.setCurrentLocation(LOCATIONS[ThreadLocalRandom.current().nextInt(LOCATIONS.length)]);
+            
+            // 保险详情
+            String insuranceType = INSURANCE_TYPES[ThreadLocalRandom.current().nextInt(INSURANCE_TYPES.length)];
+            String expiryDate = LocalDate.now().plusMonths(ThreadLocalRandom.current().nextInt(1, 13)).toString();
+            vehicle.setInsuranceDetails(insuranceType + "，到期日期: " + expiryDate);
+            
+            // 车牌号由PrePersist方法自动生成
+            vehicles.add(vehicle);
+        }
+        
+        // 批量保存
+        vehicles = vehicleRepository.saveAll(vehicles);
+        
+        logger.info("【模拟数据】成功创建{}辆车辆", vehicles.size());
+        return vehicles;
+    }
+    
+    /**
      * 初始化订单数据
      */
-    private void initOrders(List<Product> products, List<User> users, int count) {
+    private void initOrders(List<Product> products, List<User> users, List<Vehicle> vehicles, int count) {
         logger.info("【模拟数据】开始创建{}个订单...", count);
         
         // 检查用户列表是否为空
@@ -541,6 +596,11 @@ public class MockDataInitializer implements CommandLineRunner {
             return;
         }
         
+        // 确保有车辆数据
+        if (vehicles.isEmpty() || vehicles.size() < 5) {
+            logger.warn("【模拟数据】车辆数据不足，可能无法为所有订单分配车辆");
+        }
+        
         List<com.example.warehousemanagement.entity.Order> orders = new ArrayList<>();
         
         // 确保使用20种不同的产品，或所有可用产品
@@ -589,6 +649,54 @@ public class MockDataInitializer implements CommandLineRunner {
                     order.setStatus(com.example.warehousemanagement.entity.Order.OrderStatus.CANCELLED);
                 }
                 
+                // 创建并关联Task（任务）
+                if (order.getStatus() != com.example.warehousemanagement.entity.Order.OrderStatus.CANCELLED) {
+                    // 只为非取消状态的订单创建任务
+                    Task task = new Task();
+                    task.setDescription("处理订单: " + orderNo + " 的配送任务");
+                    task.setDestination(deliveryAddress);
+                    
+                    // 根据订单状态设置任务状态
+                    switch (order.getStatus()) {
+                        case PENDING:
+                            task.setStatus(Task.TaskStatus.PENDING);
+                            break;
+                        case PROCESSING:
+                            task.setStatus(ThreadLocalRandom.current().nextBoolean() ? 
+                                Task.TaskStatus.PENDING : Task.TaskStatus.IN_PROGRESS);
+                            break;
+                        case SHIPPED:
+                            task.setStatus(Task.TaskStatus.IN_PROGRESS);
+                            break;
+                        case DELIVERED:
+                            task.setStatus(Task.TaskStatus.COMPLETED);
+                            break;
+                        default:
+                            task.setStatus(Task.TaskStatus.PENDING);
+                    }
+                    
+                    // 设置计划执行时间（未来1-3天内）
+                    int daysAhead = ThreadLocalRandom.current().nextInt(1, 4);
+                    LocalDateTime scheduledTime = LocalDateTime.now().plusDays(daysAhead);
+                    task.setScheduledTime(scheduledTime);
+                    
+                    // 随机分配用户
+                    task.setAssignedUser(users.get(ThreadLocalRandom.current().nextInt(users.size())));
+                    
+                    // 随机分配车辆（如果有）
+                    if (!vehicles.isEmpty()) {
+                        Vehicle randomVehicle = vehicles.get(ThreadLocalRandom.current().nextInt(vehicles.size()));
+                        // 只分配可用或待处理状态的车辆
+                        if (randomVehicle.getStatus() == Vehicle.VehicleStatus.AVAILABLE || 
+                            randomVehicle.getStatus() == Vehicle.VehicleStatus.PENDING) {
+                            task.setVehicle(randomVehicle);
+                        }
+                    }
+                    
+                    // 设置双向关联
+                    order.setTask(task);
+                }
+                
                 // 随机添加2-6个订单项
                 int itemCount = ThreadLocalRandom.current().nextInt(2, 7);
                 List<Product> shuffledProducts = new ArrayList<>(selectedProducts);
@@ -602,14 +710,6 @@ public class MockDataInitializer implements CommandLineRunner {
                     orderItem.setProduct(product);
                     orderItem.setOrder(order);
                     orderItem.setQuantity(ThreadLocalRandom.current().nextInt(1, 11)); // 1-10个
-                    
-                    // 确保产品价格不为null
-                    if (product.getSellingPrice() != null) {
-                        orderItem.setUnitPrice(product.getSellingPrice());
-                    } else {
-                        // 如果产品没有设置售价，使用随机价格
-                        orderItem.setUnitPrice(randomBigDecimal(10, 100, 2));
-                    }
                     
                     // 随机批次号
                     orderItem.setBatchNo(BATCH_NUMBERS[ThreadLocalRandom.current().nextInt(BATCH_NUMBERS.length)]);
@@ -765,59 +865,5 @@ public class MockDataInitializer implements CommandLineRunner {
      */
     private String generateUniqueId(String prefix, int index) {
         return prefix + "-" + System.currentTimeMillis() + "-" + index;
-    }
-
-    /**
-     * 初始化车辆数据
-     */
-    private void initVehicles(int count) {
-        logger.info("【模拟数据】开始创建{}辆车辆...", count);
-        
-        // 检查已有车辆数量
-        long existingCount = vehicleRepository.count();
-        
-        if (existingCount >= count) {
-            logger.info("【模拟数据】已有{}辆车辆，无需创建", existingCount);
-            return;
-        }
-        
-        List<Vehicle> vehicles = new ArrayList<>();
-        
-        for (int i = 0; i < count - existingCount; i++) {
-            Vehicle vehicle = new Vehicle();
-            
-            // 司机姓名使用拼音
-            String driverName = DRIVER_NAMES[ThreadLocalRandom.current().nextInt(DRIVER_NAMES.length)];
-            vehicle.setDriverName(driverName);
-            
-            // 随机容量 (3-30)
-            vehicle.setCapacity(ThreadLocalRandom.current().nextInt(3, 31));
-            
-            // 随机状态，按概率分配: 60% 可用, 30% 使用中, 10% 维修中
-            double statusRandom = ThreadLocalRandom.current().nextDouble();
-            if (statusRandom < 0.6) {
-                vehicle.setStatus(Vehicle.VehicleStatus.AVAILABLE);
-            } else if (statusRandom < 0.9) {
-                vehicle.setStatus(Vehicle.VehicleStatus.IN_USE);
-            } else {
-                vehicle.setStatus(Vehicle.VehicleStatus.MAINTENANCE);
-            }
-            
-            // 当前位置
-            vehicle.setCurrentLocation(LOCATIONS[ThreadLocalRandom.current().nextInt(LOCATIONS.length)]);
-            
-            // 保险详情
-            String insuranceType = INSURANCE_TYPES[ThreadLocalRandom.current().nextInt(INSURANCE_TYPES.length)];
-            String expiryDate = LocalDate.now().plusMonths(ThreadLocalRandom.current().nextInt(1, 13)).toString();
-            vehicle.setInsuranceDetails(insuranceType + "，到期日期: " + expiryDate);
-            
-            // 车牌号由PrePersist方法自动生成
-            vehicles.add(vehicle);
-        }
-        
-        // 批量保存
-        vehicles = vehicleRepository.saveAll(vehicles);
-        
-        logger.info("【模拟数据】成功创建{}辆车辆", vehicles.size());
     }
 } 

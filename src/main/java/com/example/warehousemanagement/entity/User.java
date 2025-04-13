@@ -49,6 +49,10 @@ public class User {
     @JsonIgnoreProperties({"manager", "hibernateLazyInitializer", "handler"})
     private List<Warehouse> warehouses = new ArrayList<>();
 
+    @OneToMany(mappedBy = "assignedUser", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"assignedUser", "vehicle", "order", "hibernateLazyInitializer"})
+    private List<Task> tasks = new ArrayList<>();
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Timestamp createdAt;
 

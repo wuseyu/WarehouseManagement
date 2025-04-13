@@ -1,5 +1,6 @@
 package com.example.warehousemanagement.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.Setter;
 import jakarta.persistence.*;
@@ -25,11 +26,13 @@ public class Task {
     // 分配的用户
     @ManyToOne
     @JoinColumn(name = "assigned_user_id")
+    @JsonIgnoreProperties({"tasks", "orders", "roles", "password", "hibernateLazyInitializer"})
     private User assignedUser;
 
     // 分配的车辆
     @ManyToOne
     @JoinColumn(name = "assigned_vehicle_id")
+    @JsonIgnoreProperties({"tasks", "hibernateLazyInitializer"})
     private Vehicle vehicle;
 
     // 目的地
@@ -46,6 +49,7 @@ public class Task {
 
     // 添加 order 属性来建立双向关联
     @OneToOne(mappedBy = "task")
+    @JsonIgnoreProperties({"task", "user", "orderItems", "hibernateLazyInitializer"})
     private Order order;
 
     public enum TaskStatus {

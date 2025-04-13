@@ -3,8 +3,11 @@ package com.example.warehousemanagement.entity;
 import lombok.Getter;
 import lombok.Setter;
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "vehicle")
@@ -40,6 +43,11 @@ public class Vehicle {
     // 保险详情
     @Column(name = "insurance_details", length = 255)
     private String insuranceDetails;
+
+    // 与Task的一对多关系
+    @OneToMany(mappedBy = "vehicle", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"vehicle", "assignedUser", "order", "hibernateLazyInitializer"})
+    private List<Task> tasks = new ArrayList<>();
 
     // 车牌号生成相关的静态变量和常量
     private static final Map<String, Integer> PLATE_NUMBER_COUNTER = new ConcurrentHashMap<>();

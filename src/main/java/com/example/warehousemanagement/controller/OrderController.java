@@ -2,30 +2,76 @@ package com.example.warehousemanagement.controller;
 
 import com.example.warehousemanagement.entity.Order;
 import com.example.warehousemanagement.entity.OrderItem;
+import com.example.warehousemanagement.entity.Product;
+import com.example.warehousemanagement.entity.User;
 import com.example.warehousemanagement.service.OrderService;
+import com.example.warehousemanagement.service.ProductService;
+import com.example.warehousemanagement.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
 
     private final OrderService orderService;
+    private final UserService userService;
+    private final ProductService productService;
 
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, UserService userService, ProductService productService) {
         this.orderService = orderService;
+        this.userService = userService;
+        this.productService = productService;
     }
 
     /**
-     * 创建订单
+     * 创建订单 - 使用Map接收数据，避免Jackson序列化/反序列化问题
      */
     @PostMapping
     @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_CREATE')")
-    public ResponseEntity<Order> createOrder(@RequestBody @Valid Order order) {
+    public ResponseEntity<Order> createOrder(@RequestBody Map<String, Object> orderData) {
+        // 1. 从请求数据中提取信息
+        Long userId = Long.valueOf(orderData.get("userId").toString());
+        String deliveryAddress = (String) orderData.get("deliveryAddress");
+        List<Map<String, Object>> orderItemsData = (List<Map<String, Object>>) orderData.get("orderItems");
+        
+        // 2. 获取用户信息
+        User user = userService.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在: " + userId));
+        
+        // 3. 创建订单对象
+        Order order = new Order(user, deliveryAddress);
+        
+        // 4. 创建订单项
+        List<OrderItem> orderItems = new ArrayList<>();
+        for (Map<String, Object> itemData : orderItemsData) {
+            Long productId = Long.valueOf(itemData.get("productId").toString());
+            Integer quantity = Integer.valueOf(itemData.get("quantity").toString());
+            
+            Product product = productService.getProduct(productId)
+                    .orElseThrow(() -> new IllegalArgumentException("产品不存在: " + productId));
+            
+            OrderItem orderItem = new OrderItem(product, quantity);
+            
+            // 设置可选字段
+            if (itemData.containsKey("warehouseId") && itemData.get("warehouseId") != null) {
+                orderItem.setWarehouseId(Long.valueOf(itemData.get("warehouseId").toString()));
+            }
+            
+            orderItem.setOrder(order);
+            orderItems.add(orderItem);
+        }
+        
+        order.setOrderItems(orderItems);
+        
+        // 5. 保存订单
         return ResponseEntity.ok(orderService.createOrder(order));
     }
 
@@ -46,9 +92,9 @@ public class OrderController {
     @GetMapping("/{orderId}")
     @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
     public ResponseEntity<Order> getOrder(@PathVariable Long orderId) {
-        return orderService.findByOrderNo(orderId.toString())
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        Order order = orderService.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
+        return ResponseEntity.ok(order);
     }
 
     /**
@@ -57,8 +103,10 @@ public class OrderController {
     @GetMapping("/user/{userId}")
     @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
     public ResponseEntity<List<Order>> getUserOrders(@PathVariable Long userId) {
-        // TODO: 需要先获取用户信息
-        return ResponseEntity.ok(orderService.findOrdersByUser(null));
+        // 先获取用户信息
+        User user = userService.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在: " + userId));
+        return ResponseEntity.ok(orderService.findOrdersByUser(user));
     }
 
     /**
