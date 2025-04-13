@@ -1,5 +1,6 @@
 package com.example.warehousemanagement.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.Setter;
 import jakarta.persistence.*;
@@ -15,7 +16,7 @@ import java.util.List;
         name = "orders",
         indexes = {
                 @Index(name = "idx_order_user_status", columnList = "user_id, status"),
-                @Index(name = "idx_order_order_no", columnList = "orderNo", unique = true)
+                @Index(name = "idx_order_order_no", columnList = "order_no", unique = true)
         }
 )
 public class Order {
@@ -25,11 +26,12 @@ public class Order {
     private Long id;
 
     // 仓储配送核心字段
-    @Column(nullable = false, length = 50)
+    @Column(name = "order_no", nullable = false, length = 50)
     private String orderNo; // 唯一订单编号（格式：ORD-YYYYMMDD-XXXX）
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"orders", "hibernateLazyInitializer", "roles"})
     private User user;
 
     @Column(name = "delivery_address", length = 255, nullable = false)
@@ -50,12 +52,13 @@ public class Order {
     private Timestamp updatedAt;
 
     // 关联关系
-    @OneToMany(cascade = CascadeType.ALL)
-    @JoinColumn(name = "order_id") // 新增 JoinColumn 来指定外键列
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("order")
     private List<OrderItem> orderItems = new ArrayList<>();
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "task_id") // 新增 JoinColumn 来指定外键列
+    @JsonIgnoreProperties({"order", "assignedUser", "vehicle", "hibernateLazyInitializer"})
     private Task task;
 
     // 🌟 业务方法：自动计算总金额

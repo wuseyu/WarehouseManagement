@@ -57,6 +57,9 @@ public class InventoryService {
     @Transactional(readOnly = true)
     @PreAuthorize("@customSecurityExpression.hasPermission('INVENTORY_VIEW')")
     public Page<Inventory> listInventoryByStatus(InventoryStatus status, Pageable pageable) {
+        if (status == null) {
+            return inventoryRepository.findAll(pageable);
+        }
         return inventoryRepository.findByStatus(status, pageable);
     }
 }

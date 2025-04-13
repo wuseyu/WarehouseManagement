@@ -3,6 +3,7 @@ package com.example.warehousemanagement.entity;
 import lombok.Getter;
 import lombok.Setter;
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 @Getter
 @Setter
 @Table(
+        name = "warehouse",
         indexes = {
                 @Index(name = "idx_warehouse_type_status", columnList = "warehouse_type, status"),
                 @Index(name = "idx_warehouse_location", columnList = "location")
@@ -31,6 +33,7 @@ public class Warehouse {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "warehouses", "orders", "roles"})
     private User manager; // 负责人（保留原有关系）
 
     // 🌟 新增仓储核心字段（可空/默认值，兼容测试）
@@ -59,6 +62,7 @@ public class Warehouse {
 
     // 🌟 关联库存（1仓库→N库存，双向关联）
     @OneToMany(mappedBy = "warehouse", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("warehouse")
     private List<Inventory> inventories = new ArrayList<>();
 
     // 🌟 业务方法：计算可用容积

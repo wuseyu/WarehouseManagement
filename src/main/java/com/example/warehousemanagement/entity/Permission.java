@@ -49,9 +49,19 @@ public class Permission {
 
     // 枚举定义（仓储专用）
     public enum ResourceType {
-        // 补充完整资源类型
-        WAREHOUSE, INVENTORY, ORDER, PRODUCT, 
-        VEHICLE, TASK, USER, ROLE, REPORT
+        PRODUCT, // 产品
+        INVENTORY, // 库存
+        WAREHOUSE, // 仓库
+        ORDER, // 订单
+        ORDER_ITEM, // 订单项
+        USER, // 用户
+        ROLE, // 角色
+        PERMISSION, // 权限
+        SYSTEM, // 系统
+        REPORT, // 报表
+        SUPPLIER, // 供应商
+        CUSTOMER, // 客户
+        VEHICLE // 车辆
     }
 
     public enum ActionType {

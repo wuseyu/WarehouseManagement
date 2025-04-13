@@ -152,6 +152,16 @@ public class OrderService {
     }
 
     /**
+     * 获取所有订单
+     * @return 所有订单列表
+     */
+    @Transactional(readOnly = true)
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
+    public List<Order> getAllOrders() {
+        return orderRepository.findAll();
+    }
+
+    /**
      * 验证订单状态流转的合法性
      */
     private void validateStatusTransition(Order.OrderStatus currentStatus, Order.OrderStatus newStatus) {
@@ -177,5 +187,16 @@ public class OrderService {
             default:
                 throw new IllegalStateException("未知的订单状态");
         }
+    }
+
+    /**
+     * 根据ID查询订单
+     * @param id 订单ID
+     * @return 订单信息
+     */
+    @Transactional(readOnly = true)
+    @PreAuthorize("@customSecurityExpression.hasPermission('ORDER_VIEW')")
+    public Optional<Order> findById(Long id) {
+        return orderRepository.findById(id);
     }
 }

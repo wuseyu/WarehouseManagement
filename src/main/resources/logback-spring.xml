@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+    
+    <!-- 自定义安全相关日志级别 -->
+    <logger name="com.example.warehousemanagement.security" level="DEBUG"/>
+    <logger name="com.example.warehousemanagement.security.CustomSecurityExpression" level="TRACE"/>
+    <logger name="org.springframework.security" level="WARN"/>
+    <logger name="org.springframework.security.web.access.expression" level="DEBUG"/>
+    
+    <root level="INFO"/>
+</configuration> 

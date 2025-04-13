@@ -1,5 +1,6 @@
 package com.example.warehousemanagement.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.Setter;
 import jakarta.persistence.*;
@@ -70,8 +71,11 @@ public class Product {
 
     // 保留库存和订单关联
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"product", "hibernateLazyInitializer", "handler"})
     private List<Inventory> inventories = new ArrayList<>();
+    
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"product", "hibernateLazyInitializer", "handler"})
     private List<OrderItem> orderItems = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -100,7 +104,9 @@ public class Product {
 
     // 🌟 SKU生成逻辑优化（兼容String分类）
     @PrePersist
-    protected void generateSku() {
+    protected void onCreate() {
+        this.createdAt = new Timestamp(System.currentTimeMillis());
+        
         if (sku == null && category != null) {
             categoryCode = category.contains("-")
                     ? category.split("-")[0]
